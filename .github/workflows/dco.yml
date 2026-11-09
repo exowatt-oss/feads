@@ -1,0 +1,12 @@
+name: DCO
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  DCO:
+    uses: exowatt-oss/.github/.github/workflows/dco.yml@main
