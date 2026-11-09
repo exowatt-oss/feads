@@ -287,7 +287,7 @@ func TestFirstRunNoticeSuppressedByContext(t *testing.T) {
 // TestResolveMetricsEnabledHonorsDoNotTrack verifies the cross-tool DO_NOT_TRACK
 // standard (https://donottrack.sh/) is honored as a disable-only opt-out: a
 // truthy DO_NOT_TRACK opts out, a falsey or empty DO_NOT_TRACK falls through to
-// the (here default-enabled) config rather than force-enabling, and
+// the (here default-disabled) config rather than force-enabling, and
 // BD_DISABLE_METRICS takes precedence when both are set. The guard that a falsey
 // DO_NOT_TRACK must not re-enable a saved `bd metrics off` lives in
 // TestResolveMetricsDoNotTrackIsDisableOnly.
@@ -310,8 +310,8 @@ func TestResolveMetricsEnabledHonorsDoNotTrack(t *testing.T) {
 	if err := config.Initialize(); err != nil {
 		t.Fatalf("config.Initialize: %v", err)
 	}
-	if !metricsEnabledByConfig() {
-		t.Fatalf("precondition: metrics should be enabled by default config")
+	if metricsEnabledByConfig() {
+		t.Fatalf("precondition: metrics should be disabled by default config")
 	}
 
 	cases := []struct {
@@ -320,11 +320,11 @@ func TestResolveMetricsEnabledHonorsDoNotTrack(t *testing.T) {
 		doNotTrack  *string
 		wantEnabled bool
 	}{
-		{name: "no env uses config default", wantEnabled: true},
+		{name: "no env uses config default", wantEnabled: false},
 		{name: "DO_NOT_TRACK=1 disables", doNotTrack: strPtr("1"), wantEnabled: false},
 		{name: "DO_NOT_TRACK=true disables", doNotTrack: strPtr("true"), wantEnabled: false},
-		{name: "DO_NOT_TRACK=0 falls through to config (enabled here)", doNotTrack: strPtr("0"), wantEnabled: true},
-		{name: "DO_NOT_TRACK empty falls through to config (enabled here)", doNotTrack: strPtr(""), wantEnabled: true},
+		{name: "DO_NOT_TRACK=0 falls through to config (disabled here)", doNotTrack: strPtr("0"), wantEnabled: false},
+		{name: "DO_NOT_TRACK empty falls through to config (disabled here)", doNotTrack: strPtr(""), wantEnabled: false},
 		{name: "BD_DISABLE_METRICS=0 wins over DO_NOT_TRACK=1", disableEnv: strPtr("0"), doNotTrack: strPtr("1"), wantEnabled: true},
 		{name: "BD_DISABLE_METRICS=1 wins over DO_NOT_TRACK=0", disableEnv: strPtr("1"), doNotTrack: strPtr("0"), wantEnabled: false},
 	}

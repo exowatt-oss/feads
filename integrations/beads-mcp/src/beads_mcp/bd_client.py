@@ -6,8 +6,11 @@ import os
 import re
 import sys
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import Any
 
+from .agents import acting_actor, authorized_mutation_context
+from .bd_stderr import failure_detail
 from .config import load_config
 from .models import (
     AddCommentParams,
@@ -24,11 +27,38 @@ from .models import (
     ListCommentsParams,
     ListIssuesParams,
     ReadyWorkParams,
+    RemoveDependencyParams,
     ReopenIssueParams,
     ShowIssueParams,
     Stats,
     UpdateIssueParams,
 )
+from .silo import configured_silo
+from .workspace_state import (
+    WORKSPACE_DIR_KEY,
+    binding_from_metadata,
+    binding_metadata,
+    create_binding,
+    normalize_workspace_dir,
+)
+
+
+def _under_workspace_prefix(rows: list[Any], prefix: str) -> list[Any]:
+    """The rows whose ``workspace_dir`` binding is at or below ``prefix``.
+
+    Path-boundary aware: ``/w/dev-tools-old`` is not under ``/w/dev-tools``, which a bare
+    ``startswith`` would claim it is. Equality still counts — the workspace itself is
+    under itself.
+    """
+    boundary = prefix if prefix.endswith(os.sep) else prefix + os.sep
+    out = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        directory = binding_from_metadata(row.get("metadata")).get(WORKSPACE_DIR_KEY, "")
+        if directory == prefix or directory.startswith(boundary):
+            out.append(row)
+    return out
 
 
 def _sanitize_issue_deps(issue: dict[str, Any]) -> dict[str, Any]:
@@ -56,6 +86,48 @@ class BdError(Exception):
     pass
 
 
+class ActorResolutionError(BdError):
+    """A silo mutation could not establish a verified acting actor."""
+
+    pass
+
+
+def silo_configured(env: Mapping[str, str] | None = None) -> bool:
+    """Validate and report whether this call is running in a silo.
+
+    The exact-value contract lives in :mod:`beads_mcp.silo`; this compatibility
+    wrapper keeps the mutation-facing exception type used by the bd and Postgres
+    clients. A malformed non-empty value is never reduced to base mode.
+    """
+    try:
+        return configured_silo(env) is not None
+    except ValueError as exc:
+        raise ActorResolutionError(str(exc)) from exc
+
+
+def mutation_actor(
+    fallback: str | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
+    db_path: str | None = None,
+) -> str:
+    """Resolve the actor for a subprocess or mutation.
+
+    Base-mode callers retain their historical fallback chain. A valid silo is a
+    different trust boundary: the mutation must consume the identity authorized
+    for this tool invocation, and an absent/stale context is a refusal rather than
+    permission to resolve or guess from config, environment, git, or the host.
+    """
+    in_silo = silo_configured(env)
+    if in_silo:
+        context = authorized_mutation_context()
+        if context is None or not context.actor:
+            raise ActorResolutionError("a valid FEADS_SILO requires an authorized acting actor")
+        return context.actor
+    actor = acting_actor() if env is None and db_path is None else acting_actor(env, db_path)
+    return actor or fallback or ""
+
+
 class BdNotFoundError(BdError):
     """Raised when bd command is not found."""
 
@@ -80,7 +152,15 @@ class BdNotFoundError(BdError):
 
 
 class BdCommandError(BdError):
-    """Raised when bd command fails."""
+    """Raised when bd command fails.
+
+    ``stderr`` keeps bd's output verbatim for logs and tests. The *message* does not:
+    it is built with :func:`~beads_mcp.bd_stderr.failure_detail`, which drops bd's
+    advisory lines. bd prefixes every run in a clone with no ``beads.role`` with a
+    three-line nudge, and an error that opens with "warning: beads.role not configured"
+    buries the actual failure under remediation aimed at whoever owns the server
+    (#feads-r8d).
+    """
 
     stderr: str
     returncode: int
@@ -143,6 +223,11 @@ class BdClientBase(ABC):
     @abstractmethod
     async def add_dependency(self, params: AddDependencyParams) -> None:
         """Add a dependency between issues."""
+        pass
+
+    @abstractmethod
+    async def remove_dependency(self, params: RemoveDependencyParams) -> None:
+        """Remove a dependency between issues."""
         pass
 
     @abstractmethod
@@ -280,17 +365,113 @@ class BdCliClient(BdClientBase):
         # Use process working directory (set by MCP client at spawn time)
         return os.getcwd()
 
-    def _global_flags(self) -> list[str]:
+    def _acting_actor(self, *, mutation: bool = False) -> str:
+        """The actor this specific call's bd invocation is attributed to.
+
+        The caller's verified wire identity wins, and it has to be read **per
+        call**: clients are pooled per workspace and shared across requests, so
+        anything captured on the instance describes whoever's request built the
+        client, not whoever is calling now. ``self.actor`` (the process
+        environment, via config) is only the fallback for a caller that verified
+        as nobody — which on stdio is the operator, whose environment genuinely
+        is their own, and on HTTP is a caller the write gate refuses anyway.
+        """
+        if mutation:
+            return mutation_actor(fallback=self.actor)
+        return acting_actor() or self.actor or ""
+
+    def _child_env(self) -> dict[str, str]:
+        """The environment every bd child of this client runs with.
+
+        bd resolves its board from BEADS_DIR first and only falls back to walking up
+        from cwd (internal/storage/domain/fs/beads.go: ``resolveBeadsDir``), so an
+        ambient BEADS_DIR — the hosted daemon exports one for the board it was started
+        against — outranks the workspace a tool call just resolved. Stamping the bound
+        board positively is therefore not enough: the *other* variables have to be
+        removed in the same breath, or a client bound by cwd alone still opens the
+        daemon's board and mints issues there.
+
+        Tri-state, the same shape as ``artifacts._run_bd``:
+
+        * bound to a ``.beads`` directory — stamp BEADS_DIR, drop BEADS_DB/BD_DB;
+        * bound to a database file — stamp BEADS_DB, drop BEADS_DIR;
+        * bound to a working directory only — drop both so cwd discovery decides;
+        * bound to nothing — leave the environment alone, which is what a
+          never-bound stdio session (seeded purely from its own environment) wants.
+        """
+        env = os.environ.copy()
+        # The explicit --actor flag is authoritative, but do not leave a
+        # configured host actor available as a second source in silo mode.
+        if silo_configured():
+            env.pop("BEADS_ACTOR", None)
+        if self.beads_dir:
+            env["BEADS_DIR"] = self.beads_dir
+            env.pop("BEADS_DB", None)
+            env.pop("BD_DB", None)
+        elif self.beads_db:
+            env["BEADS_DB"] = self.beads_db
+            env.pop("BEADS_DIR", None)
+        elif self.working_dir:
+            env.pop("BEADS_DIR", None)
+            env.pop("BEADS_DB", None)
+            env.pop("BD_DB", None)
+        return env
+
+    def _spawn_failure(self, e: FileNotFoundError, working_dir: str | None) -> BdError:
+        """Translate a spawn-time FileNotFoundError into the error that is actually true.
+
+        create_subprocess_exec raises the same FileNotFoundError for a missing
+        program and a missing working directory, and reporting the wrong one
+        sends the caller chasing a phantom bd install: the hosted server saw
+        exactly that when a client-local workspace_root that does not exist
+        server-side surfaced as "bd CLI not found at: /opt/feads/bd". The cwd
+        is checked directly rather than trusting e.filename, which not every
+        platform fills in.
+        """
+        if working_dir is not None and not os.path.isdir(working_dir):
+            return BdError(
+                f"Working directory does not exist on this server: {working_dir}\n"
+                "The workspace points at a path this server cannot see — if you are "
+                "talking to a remote/hosted server, paths on your local machine do not "
+                "exist here. Switch with context(board='<id>') (see boards_list()), or "
+                "pass a workspace_root that exists where the server runs."
+            )
+        return BdNotFoundError(BdNotFoundError.installation_message(self.bd_path))
+
+    @staticmethod
+    def _command_mutates(args: tuple[str, ...]) -> bool:
+        """Whether a bd command writes attribution-bearing state."""
+        if not args:
+            return False
+        if args[0] == "repair-deps":
+            return "--fix" in args
+        if args[0] == "doctor":
+            return "--fix" in args or "--clean" in args
+        return args[0] in {
+            "claim",
+            "close",
+            "comment",
+            "create",
+            "dep",
+            "init",
+            "note",
+            "reopen",
+            "update",
+        }
+
+    def _global_flags(self, *, mutation: bool = False) -> list[str]:
         """Build list of global flags for bd commands.
 
         Returns:
             List of global flag arguments
         """
+        silo_configured()
         flags = []
         # NOTE: --db flag removed in v0.20.1, bd now auto-discovers database via cwd
         # We pass cwd via _run_command instead
-        if self.actor:
-            flags.extend(["--actor", self.actor])
+        actor = self._acting_actor(mutation=mutation)
+        if actor:
+            flags.extend(["--actor", actor])
         if self.no_auto_flush:
             flags.append("--no-auto-flush")
         if self.no_auto_import:
@@ -311,15 +492,16 @@ class BdCliClient(BdClientBase):
             BdNotFoundError: If bd command not found
             BdCommandError: If bd command fails
         """
-        cmd = [self.bd_path, *args, *self._global_flags(), "--json"]
+        cmd = [
+            self.bd_path,
+            *args,
+            *self._global_flags(mutation=self._command_mutates(args)),
+            "--json",
+        ]
         working_dir = cwd if cwd is not None else self._get_working_dir()
 
         # Set up environment with database configuration
-        env = os.environ.copy()
-        if self.beads_dir:
-            env["BEADS_DIR"] = self.beads_dir
-        elif self.beads_db:
-            env["BEADS_DB"] = self.beads_db
+        env = self._child_env()
 
         # Log database routing for debugging
         if self.beads_dir:
@@ -343,12 +525,13 @@ class BdCliClient(BdClientBase):
             )
             stdout, stderr = await process.communicate()
         except FileNotFoundError as e:
-            raise BdNotFoundError(BdNotFoundError.installation_message(self.bd_path)) from e
+            raise self._spawn_failure(e, working_dir) from e
 
         if process.returncode != 0:
+            raw = stderr.decode()
             raise BdCommandError(
-                f"bd command failed: {stderr.decode()}",
-                stderr=stderr.decode(),
+                f"bd command failed: {failure_detail(raw, process.returncode)}",
+                stderr=raw,
                 returncode=process.returncode or 1,
             )
 
@@ -375,6 +558,14 @@ class BdCliClient(BdClientBase):
         # Minimum required version
         min_version = (0, 9, 0)
 
+        # A silo read must not inherit the host actor, but it does not need an
+        # authorized mutation context merely to inspect the installed version.
+        version_env = None
+        if silo_configured():
+            version_env = os.environ.copy()
+            version_env.pop("BEADS_ACTOR", None)
+
+        working_dir = self._get_working_dir()
         try:
             process = await asyncio.create_subprocess_exec(
                 self.bd_path,
@@ -382,16 +573,18 @@ class BdCliClient(BdClientBase):
                 stdin=asyncio.subprocess.DEVNULL,  # Prevent inheriting MCP's stdin
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self._get_working_dir(),
+                cwd=working_dir,
+                env=version_env,
             )
             stdout, stderr = await process.communicate()
         except FileNotFoundError as e:
-            raise BdNotFoundError(BdNotFoundError.installation_message(self.bd_path)) from e
+            raise self._spawn_failure(e, working_dir) from e
 
         if process.returncode != 0:
+            raw = stderr.decode()
             raise BdCommandError(
-                f"bd version failed: {stderr.decode()}",
-                stderr=stderr.decode(),
+                f"bd version failed: {failure_detail(raw, process.returncode)}",
+                stderr=raw,
                 returncode=process.returncode or 1,
             )
 
@@ -482,12 +675,36 @@ class BdCliClient(BdClientBase):
             args.extend(["--title", params.query])
         if params.unassigned:
             args.append("--no-assignee")
-        if params.limit:
+
+        prefix = normalize_workspace_dir(params.workspace_dir_prefix)
+        if prefix:
+            # bd can select "has this metadata key" and "equals this exact value", but not
+            # "starts with". So the key narrows the scan to bound issues server-side and
+            # the prefix is applied here — the same split `artifacts.py` uses for its
+            # marker key, including the load-bearing `--limit 0`: bd's default 50 would
+            # let a busy board answer "nothing in that workspace" for the 51st row.
+            args.extend(["--limit", "0", "--has-metadata-key", WORKSPACE_DIR_KEY])
+        elif params.ids is not None:
+            # Filtered below: scan the board, not the first page of it.
+            args.extend(["--limit", "0"])
+            if not params.status:
+                args.append("--all")
+        elif params.limit:
             args.extend(["--limit", str(params.limit)])
 
         data = await self._run_command(*args)
         if not isinstance(data, list):
             return []
+
+        if prefix:
+            data = _under_workspace_prefix(data, prefix)[: params.limit]
+
+        if params.ids is not None:
+            # bd has no id filter: narrow here, in the order given (open first).
+            order = {issue_id: index for index, issue_id in enumerate(params.ids)}
+            data = [d for d in data if isinstance(d, dict) and str(d.get("id")) in order]
+            data.sort(key=lambda d: (str(d.get("status")) == "closed", order[str(d.get("id"))]))
+            data = data[: params.limit]
 
         return [Issue.model_validate(_sanitize_issue_deps(issue)) for issue in data]
 
@@ -543,6 +760,16 @@ class BdCliClient(BdClientBase):
         if params.deps:
             args.extend(["--deps", ",".join(params.deps)])
 
+        binding = create_binding(
+            params.issue_type,
+            workspace_dir=params.workspace_dir,
+            session_id=params.session_id,
+            host=params.host,
+            workspace_root=self.working_dir,
+        )
+        if binding:
+            args.extend(["--metadata", json.dumps(binding, separators=(",", ":"))])
+
         data = await self._run_command(*args)
         if not isinstance(data, dict):
             raise BdCommandError("Invalid response for create")
@@ -552,6 +779,13 @@ class BdCliClient(BdClientBase):
     async def update(self, params: UpdateIssueParams) -> Issue:
         """Update an issue.
 
+        ``params.labels`` replaces the whole label set. bd has no "set these labels"
+        flag that can express the empty set (``--set-labels`` is ignored when the slice
+        it parses is empty, which is exactly the clear-all case), so the replacement is
+        expressed as the diff against what the bead carries now and handed to
+        ``--add-label`` / ``--remove-label`` on the same ``bd update`` call. bd re-reads
+        the issue after applying labels, so the reply already carries the new set.
+
         Args:
             params: Issue update parameters
 
@@ -559,6 +793,9 @@ class BdCliClient(BdClientBase):
             Updated issue
         """
         args = ["update", params.issue_id]
+
+        if params.labels is not None:
+            args.extend(await self._label_diff_args(params.issue_id, params.labels))
 
         if params.status:
             args.extend(["--status", params.status])
@@ -579,7 +816,29 @@ class BdCliClient(BdClientBase):
         if params.external_ref:
             args.extend(["--external-ref", params.external_ref])
 
-        data = await self._run_command(*args)
+        binding = binding_metadata(
+            workspace_dir=params.workspace_dir,
+            session_id=params.session_id,
+            host=params.host,
+        )
+        for key, value in binding.items():
+            # `--set-metadata` rather than `--metadata`: the latter shallow-merges a whole
+            # object, and bd refuses to combine it with the incremental flags, so a rebind
+            # expressed that way would race any artifact key written between the read and
+            # the write. Per-key edits are applied inside bd's own transaction.
+            args.extend(["--set-metadata", f"{key}={value}"])
+
+        # `bd update --metadata` cannot be combined with its incremental metadata
+        # flags. Run the ordinary fields first, then apply the JSON patch and deletes
+        # as separate transactional updates; each command still merges against the
+        # current row rather than a stale snapshot.
+        regular_data = None
+        if len(args) > 2:
+            regular_data = await self._run_command(*args)
+        metadata_data = await self._merge_metadata(params.issue_id, params.metadata)
+        data = metadata_data if metadata_data is not None else regular_data
+        if data is None:
+            data = await self._run_command("show", params.issue_id)
         # bd update returns an array, extract first element
         if isinstance(data, list):
             if not data:
@@ -590,6 +849,45 @@ class BdCliClient(BdClientBase):
             raise BdCommandError(f"Invalid response for update {params.issue_id}")
 
         return Issue.model_validate(data)
+
+    async def _merge_metadata(self, issue_id: str, metadata: dict[str, Any] | None) -> object | None:
+        """Apply a top-level metadata patch, deleting keys whose value is null."""
+        if metadata is None:
+            return None
+        values = {key: value for key, value in metadata.items() if value is not None}
+        deletes = [key for key, value in metadata.items() if value is None]
+        result = None
+        if values:
+            result = await self._run_command(
+                "update", issue_id, "--metadata", json.dumps(values, separators=(",", ":"))
+            )
+        for key in deletes:
+            result = await self._run_command("update", issue_id, "--unset-metadata", key)
+        return result
+
+    async def _label_diff_args(self, issue_id: str, labels: list[str]) -> list[str]:
+        """The ``--add-label`` / ``--remove-label`` flags that turn today's set into ``labels``.
+
+        One flag occurrence per label rather than a comma-joined value: cobra's
+        StringSlice splits on commas, so joining would silently shred any label that
+        contains one.
+
+        Args:
+            issue_id: Issue whose labels are being replaced
+            labels: The complete label set the caller wants afterwards
+
+        Returns:
+            Flags to append to a ``bd update`` invocation (empty when already correct)
+        """
+        current = set((await self.show(ShowIssueParams(issue_id=issue_id))).labels)
+        wanted = set(labels)
+
+        args: list[str] = []
+        for label in sorted(wanted - current):
+            args.extend(["--add-label", label])
+        for label in sorted(current - wanted):
+            args.extend(["--remove-label", label])
+        return args
 
     async def claim(self, params: ClaimIssueParams) -> Issue:
         """Atomically claim an issue via bd update --claim.
@@ -622,11 +920,16 @@ class BdCliClient(BdClientBase):
             List containing closed issue
         """
         args = ["close", params.issue_id, "--reason", params.reason]
+        if params.force:
+            args.append("--force")
 
         data = await self._run_command(*args)
         if not isinstance(data, list):
             raise BdCommandError(f"Invalid response for close {params.issue_id}")
 
+        metadata_data = await self._merge_metadata(params.issue_id, params.metadata)
+        if metadata_data is not None:
+            data = metadata_data if isinstance(metadata_data, list) else [metadata_data]
         return [Issue.model_validate(issue) for issue in data]
 
     async def reopen(self, params: ReopenIssueParams) -> list[Issue]:
@@ -664,35 +967,44 @@ class BdCliClient(BdClientBase):
             params.depends_on_id,
             "--type",
             params.dep_type,
-            *self._global_flags(),
+            *self._global_flags(mutation=True),
         ]
 
         # Set up environment with database configuration
-        env = os.environ.copy()
-        if self.beads_dir:
-            env["BEADS_DIR"] = self.beads_dir
-        elif self.beads_db:
-            env["BEADS_DB"] = self.beads_db
+        env = self._child_env()
 
+        working_dir = self._get_working_dir()
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=asyncio.subprocess.DEVNULL,  # Prevent inheriting MCP's stdin
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self._get_working_dir(),
+                cwd=working_dir,
                 env=env,
             )
             _stdout, stderr = await process.communicate()
         except FileNotFoundError as e:
-            raise BdNotFoundError(BdNotFoundError.installation_message(self.bd_path)) from e
+            raise self._spawn_failure(e, working_dir) from e
 
         if process.returncode != 0:
+            raw = stderr.decode()
             raise BdCommandError(
-                f"bd dep add failed: {stderr.decode()}",
-                stderr=stderr.decode(),
+                f"bd dep add failed: {failure_detail(raw, process.returncode)}",
+                stderr=raw,
                 returncode=process.returncode or 1,
             )
+
+    async def remove_dependency(self, params: RemoveDependencyParams) -> None:
+        """Remove a dependency between issues.
+
+        ``bd dep remove`` prints a confirmation rather than JSON, so this goes through
+        the same text path as ``comment`` and ``note``.
+
+        Args:
+            params: Dependency parameters (issue_id, depends_on_id)
+        """
+        await self._run_text_command("dep", "remove", params.issue_id, params.depends_on_id)
 
     async def _run_text_command(self, *args: str) -> str:
         """Run a bd command that returns plain text (not JSON) and return stdout.
@@ -700,31 +1012,33 @@ class BdCliClient(BdClientBase):
         Used for subcommands like `comment`/`note` that print a confirmation
         line rather than JSON. Mirrors _run_command's env and error handling.
         """
-        cmd = [self.bd_path, *args, *self._global_flags()]
+        cmd = [
+            self.bd_path,
+            *args,
+            *self._global_flags(mutation=True),
+        ]
 
-        env = os.environ.copy()
-        if self.beads_dir:
-            env["BEADS_DIR"] = self.beads_dir
-        elif self.beads_db:
-            env["BEADS_DB"] = self.beads_db
+        env = self._child_env()
 
+        working_dir = self._get_working_dir()
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=asyncio.subprocess.DEVNULL,  # Prevent inheriting MCP's stdin
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self._get_working_dir(),
+                cwd=working_dir,
                 env=env,
             )
             stdout, stderr = await process.communicate()
         except FileNotFoundError as e:
-            raise BdNotFoundError(BdNotFoundError.installation_message(self.bd_path)) from e
+            raise self._spawn_failure(e, working_dir) from e
 
         if process.returncode != 0:
+            raw = stderr.decode()
             raise BdCommandError(
-                f"bd {args[0]} failed: {stderr.decode()}",
-                stderr=stderr.decode(),
+                f"bd {args[0]} failed: {failure_detail(raw, process.returncode)}",
+                stderr=raw,
                 returncode=process.returncode or 1,
             )
 
@@ -775,6 +1089,12 @@ class BdCliClient(BdClientBase):
             Quickstart guide text
         """
         cmd = [self.bd_path, "quickstart"]
+        # Quickstart is a read; keep the host actor out of a silo child without
+        # requiring an authorized mutation context.
+        quickstart_env = None
+        if silo_configured():
+            quickstart_env = os.environ.copy()
+            quickstart_env.pop("BEADS_ACTOR", None)
 
         try:
             process = await asyncio.create_subprocess_exec(
@@ -783,6 +1103,7 @@ class BdCliClient(BdClientBase):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=self._get_working_dir(),
+                env=quickstart_env,
             )
             stdout, stderr = await process.communicate()
         except FileNotFoundError as e:
@@ -790,7 +1111,7 @@ class BdCliClient(BdClientBase):
 
         if process.returncode != 0:
             raise BdCommandError(
-                f"bd quickstart failed: {stderr.decode()}",
+                f"bd quickstart failed: {failure_detail(stderr.decode(), process.returncode)}",
                 stderr=stderr.decode(),
                 returncode=process.returncode or 1,
             )
@@ -929,24 +1250,33 @@ class BdCliClient(BdClientBase):
         # NOTE: Do NOT add --db flag for init!
         # init creates a NEW database in the current directory.
         # Only add actor-related flags.
-        if self.actor:
-            cmd.extend(["--actor", self.actor])
+        actor = self._acting_actor(mutation=True)
+        if actor:
+            cmd.extend(["--actor", actor])
 
+        # init is the one subcommand that used to inherit the ambient environment
+        # wholesale (no env= at all). That is the most dangerous place to inherit it:
+        # a stray BEADS_DIR sends `bd init` at somebody else's board instead of the
+        # workspace this call resolved, so it runs through the same tri-state stamp
+        # as every other bd child — which for a cwd-bound client means BEADS_DIR is
+        # *removed*, and init creates the board where the caller asked for it.
+        working_dir = self._get_working_dir()
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=asyncio.subprocess.DEVNULL,  # Prevent inheriting MCP's stdin
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self._get_working_dir(),
+                cwd=working_dir,
+                env=self._child_env(),
             )
             stdout, stderr = await process.communicate()
         except FileNotFoundError as e:
-            raise BdNotFoundError(BdNotFoundError.installation_message(self.bd_path)) from e
+            raise self._spawn_failure(e, working_dir) from e
 
         if process.returncode != 0:
             raise BdCommandError(
-                f"bd init failed: {stderr.decode()}",
+                f"bd init failed: {failure_detail(stderr.decode(), process.returncode)}",
                 stderr=stderr.decode(),
                 returncode=process.returncode or 1,
             )

@@ -1,3 +1,7 @@
+# Upstream Beads reference (not Feads policy)
+
+> Inherited from upstream Beads. Maintainer/release steps below describe upstream and do not apply to this fork; follow [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for Feads. Never push to upstream or publish a release on the basis of this file.
+
 # Detailed Agent Instructions for Beads Development
 
 **For project overview and quick start, see [AGENTS.md](AGENTS.md)**
@@ -114,26 +118,17 @@ bd hooks install
 
 ## Git Workflow: PR by Default
 
-Crew workers use a PR-based workflow. Beads is a dependency of a downstream consumer, so we
-defer to the standard PR flow to keep changes reviewable.
+Feads contributors use a PR-based workflow targeting exowatt-oss/feads.
 
 - Work on a feature branch, push the branch, open a PR against `main`
-- `gh pr create` is the normal path to land work
-- Direct push to main is reserved for releases (tag + release commit) and
-  narrow operational fixes; prefer a PR when unsure
+- `gh pr create --repo exowatt-oss/feads` is the normal way to propose work
+- Direct push to main is a maintainer-only action, never a session-close step
 - When handling external contributor PRs, use fix-merge: checkout the PR
   branch locally, fix/rebase onto main, merge via PR, then close the PR
 
-### Maintainer PR Guidelines
+### Maintainer PR Guidelines (upstream reference)
 
-Before triaging, reviewing, landing, closing, or otherwise maintaining PRs,
-read [PR_MAINTAINER_GUIDELINES.md](PR_MAINTAINER_GUIDELINES.md). The
-maintainer policy is to maximize community throughput: find useful contributor
-value, absorb or transform it locally when practical, preserve attribution, and
-use request-changes only as a last resort.
-
-Sign agent-written GitHub comments and reviews using
-[engdocs/AGENT_SIGNING.md](engdocs/AGENT_SIGNING.md).
+The linked [PR_MAINTAINER_GUIDELINES.md](PR_MAINTAINER_GUIDELINES.md) describes upstream Beads maintainer policy, not Feads. For this fork follow [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md); target `exowatt-oss/feads`.
 
 ### External Contributor PRs: Check Before You Build
 
@@ -143,14 +138,14 @@ Run the read-only preflight before implementing related work, opening a PR, or
 merging/closing a PR:
 
 ```bash
-scripts/pr-preflight.sh --search "<topic keywords>" --repo gastownhall/beads
-scripts/pr-preflight.sh <pr-number> --repo gastownhall/beads
+scripts/pr-preflight.sh --search "<topic keywords>" --repo exowatt-oss/feads
+scripts/pr-preflight.sh <pr-number> --repo exowatt-oss/feads
 ```
 
 **Before implementing any feature or fix, check for existing open PRs on the same topic:**
 
 ```bash
-gh pr list --repo gastownhall/beads --state open --search "<topic keywords>" --json number,title,author,headRefName
+gh pr list --repo exowatt-oss/feads --state open --search "<topic keywords>" --json number,title,author,headRefName
 ```
 
 **Contributor work gets priority.** If an external PR already exists:
@@ -165,11 +160,9 @@ If you must rewrite (e.g., fundamentally different approach needed), explain why
 Do not rely on auto-discovery of CONTRIBUTING.md; the preflight is the agent
 gate for PR handling.
 
-## Landing the Plane
+## Session completion in this fork
 
-See [AGENTS.md](AGENTS.md#landing-the-plane-session-completion) for the
-canonical session-completion protocol (quality gates, mandatory `git push`,
-cleanup, and next-session hand-off).
+Follow [AGENTS.md](AGENTS.md) and the current user request. Do not push, merge, sync a Dolt remote, or release automatically on session completion.
 
 ## Agent Session Workflow
 
@@ -228,10 +221,7 @@ bd create "Add tests" -p 1
 bd update bd-42 --claim
 bd close bd-40 --reason "Completed"
 
-# Push Dolt data to remote if configured
-bd dolt push
-
-# Now safe to end session
+# Report local status; remote sync or push requires explicit authorization
 ```
 
 This installs:
@@ -404,59 +394,9 @@ bd ready
 > `gms_pure_go` build tag. Always use `make install`, `./bd`, or
 > `go run -tags gms_pure_go ./cmd/bd ...` when you explicitly need `go run`.
 
-## Version Management
+## Upstream-only version and release procedures
 
-**IMPORTANT**: When the user asks to "bump the version" or mentions a new version number (e.g., "bump to 0.9.3"), use the version bump script:
-
-```bash
-# Preview changes (shows diff, doesn't commit)
-./scripts/bump-version.sh 0.9.3
-
-# Auto-commit the version bump
-./scripts/bump-version.sh 0.9.3 --commit
-git push origin main
-```
-
-**What it does:**
-
-- Updates ALL version files (CLI, plugin, MCP server, docs) in one command
-- Validates semantic versioning format
-- Shows diff preview
-- Verifies all versions match after update
-- Creates standardized commit message
-
-**User will typically say:**
-
-- "Bump to 0.9.3"
-- "Update version to 1.0.0"
-- "Rev the project to 0.9.4"
-- "Increment the version"
-
-**You should:**
-
-1. Run `./scripts/bump-version.sh <version> --commit`
-2. Push to GitHub
-3. Confirm all versions updated correctly
-
-**Files updated automatically:**
-
-- `cmd/bd/version.go` - CLI version
-- `plugins/beads/.claude-plugin/plugin.json` - Claude plugin version
-- `plugins/beads/.codex-plugin/plugin.json` - Codex plugin version
-- `.claude-plugin/marketplace.json` - Claude marketplace version
-- `integrations/beads-mcp/pyproject.toml` - MCP server version
-- `README.md` - Documentation version
-- `PLUGIN.md` - Version requirements
-
-**Why this matters:** We had version mismatches (bd-66) when only `version.go` was updated. This script prevents that by updating all components atomically.
-
-See `scripts/README.md` for more details.
-
-## Release Process (Maintainers)
-
-See [RELEASING.md](RELEASING.md) for the complete release process, including
-the automated `./scripts/release.sh <version>` script and the manual,
-step-by-step channel-by-channel instructions.
+The original Beads version-bump and release steps are upstream maintainer procedures, not Feads instructions. Propose version changes by a signed-off PR to exowatt-oss/feads; Feads maintainers decide release timing and channels. Do not run upstream release scripts or push `main` from this document.
 
 ## Checking GitHub Issues and PRs
 
@@ -500,7 +440,7 @@ email, repo path, remote URL, issue content, or user-supplied strings are
 collected. Events are written under `~/.beads/eventsData` and POSTed to
 `https://gastownhall-eventsapi.com/mp/collect`.
 
-Metrics are enabled by default (opt-out). The friendliest way to see or change
+Metrics are disabled by default in this fork. Explicitly opt in with `bd metrics on`; `BD_DISABLE_METRICS` and `DO_NOT_TRACK` still override as documented. The friendliest way to see or change
 them is `bd metrics` (`bd metrics on` / `bd metrics off` / `bd metrics example`),
 which takes effect on the next command with no restart. `BD_DISABLE_METRICS=1`
 still works as a one-off, shell-scoped override. The cross-tool

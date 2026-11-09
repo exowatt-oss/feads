@@ -64,11 +64,11 @@ func CheckCLIVersionLocalOnly(cliVersion string) DoctorCheck {
 	}
 }
 
-// installScriptCommand is the default upgrade/install command for non-Homebrew installations.
-const installScriptCommand = "curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+// installScriptCommand points to this fork's source-build instructions.
+const installScriptCommand = "See https://github.com/exowatt-oss/feads#install (build from source)"
 
 // getUpgradeCommand returns the appropriate upgrade command based on how bd was installed.
-// Detects Homebrew on macOS/Linux, and falls back to the install script on all platforms.
+// Never recommend an upstream Beads package or install script for the Feads binary.
 func getUpgradeCommand() string {
 	execPath, err := os.Executable()
 	if err != nil {
@@ -85,8 +85,7 @@ func getUpgradeCommand() string {
 }
 
 // upgradeCommandForPath returns the upgrade command for a given executable path.
-// The homebrew-core formula is named "beads" (Formula/b/beads.rb), so the correct
-// command is "brew upgrade beads" — even for the legacy tap that used "bd.rb".
+// This fork has no Homebrew formula; even a Beads Cellar path gets Feads build advice.
 func upgradeCommandForPath(execPath string) string {
 	lowerPath := strings.ToLower(execPath)
 
@@ -94,10 +93,10 @@ func upgradeCommandForPath(execPath string) string {
 	// Matches both homebrew-core formula "beads" and legacy tap formula "bd"
 	if strings.Contains(lowerPath, "/cellar/beads/") ||
 		strings.Contains(lowerPath, "/cellar/bd/") {
-		return "brew upgrade beads"
+		return installScriptCommand
 	}
 
-	// Default to install script (works on all platforms including Windows via WSL/Git Bash)
+	// Otherwise, point to this fork's build instructions.
 	return installScriptCommand
 }
 
@@ -210,7 +209,7 @@ func CheckMetadataVersionTracking(path string, currentVersion string) DoctorChec
 
 // fetchLatestGitHubRelease fetches the latest release version from GitHub API.
 func fetchLatestGitHubRelease() (string, error) {
-	url := "https://api.github.com/repos/steveyegge/beads/releases/latest"
+	url := "https://api.github.com/repos/exowatt-oss/feads/releases/latest"
 
 	client := &http.Client{
 		Timeout: 5 * time.Second,

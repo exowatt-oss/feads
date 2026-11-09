@@ -8,6 +8,18 @@ from pathlib import Path
 
 import pytest
 
+from beads_mcp.agents import request_authorization
+
+
+@pytest.fixture(autouse=True)
+def clear_request_authorization_context():
+    """Keep direct authorization unit tests from seeding the next test task."""
+    token = request_authorization.set(None)
+    try:
+        yield
+    finally:
+        request_authorization.reset(token)
+
 
 def pytest_configure(config):
     """Called before test collection starts - ensure we're not polluting production."""
@@ -54,6 +66,32 @@ def pytest_configure(config):
             f"  Remove BEADS_WORKING_DIR or set it to a temp directory.",
             returncode=1,
         )
+
+
+@pytest.fixture(autouse=True)
+def _no_ambient_agent_identity(monkeypatch):
+    """Strip the maintainer's own agent identity from every test.
+
+    Session-wide, not just in the identity suites, and the reason is new: the mutating
+    tools are now gated on the `write` permission, so *any* test that calls
+    `create`/`update`/`close` resolves an identity against whatever the developer's
+    environment happens to hold. `CLAUDE_CODE_SESSION_ID` is the dangerous one — Claude
+    Code exports it into every session, including the one running these tests, so a
+    maintainer whose session id belongs to a revoked agent would see writes refused
+    across unrelated suites, with a failure that reproduces on exactly one machine.
+
+    `FEADS_REQUIRE_AGENT`, `FEADS_HOSTED`, and `FEADS_REGISTRY_DB` go too: any one
+    can turn a green suite red for reasons that have nothing to do with the code under test.
+    """
+    for name in (
+        "FEADS_AGENT_TOKEN",
+        "CLAUDE_CODE_SESSION_ID",
+        "FEADS_REQUIRE_AGENT",
+        "FEADS_HOSTED",
+        "FEADS_REGISTRY_DB",
+        "FEADS_DASHBOARD_URL",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 def pytest_runtest_setup(item):

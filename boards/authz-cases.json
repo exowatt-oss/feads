@@ -1,0 +1,660 @@
+{
+  "$comment": [
+    "Shared authorization conformance cases. THE contract for the two-tier model.",
+    "",
+    "The policy is implemented twice — boards/authz.mjs (Node: CLI + UI server) and",
+    "integrations/beads-mcp/src/beads_mcp/authz.py (Python: MCP). Two implementations",
+    "of a permission check is how surfaces come to disagree, and a disagreement here is",
+    "a security bug rather than a routing quirk. So neither implementation owns the",
+    "behaviour: this file does, and both test suites assert against it.",
+    "",
+    "Adding a case is how you change the policy. Change an implementation without",
+    "changing this file and the other implementation's suite still passes, which is",
+    "exactly the drift this exists to prevent.",
+    "",
+    "`agent: null` means an unidentified caller. Absent `resource` means none applies."
+  ],
+  "cases": [
+    {
+      "name": "user reads any board",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "read",
+      "allowed": true
+    },
+    {
+      "name": "admin reads any board",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "read",
+      "allowed": true
+    },
+    {
+      "name": "user may create and update items",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "write",
+      "allowed": true
+    },
+    {
+      "name": "admin may create and update items",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "write",
+      "allowed": true
+    },
+    {
+      "name": "user deletes an item it created",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "delete",
+      "resource": { "id": "ex-1", "created_by": "laptop-claude" },
+      "allowed": true
+    },
+    {
+      "name": "user cannot delete another agent's item",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "allowed": false
+    },
+    {
+      "name": "user cannot delete an item with no recorded creator",
+      "$why": "Treating unattributed as owned would expose every item predating creator attribution.",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "delete",
+      "resource": { "id": "ex-3", "created_by": "" },
+      "allowed": false
+    },
+    {
+      "name": "admin deletes another agent's item",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "allowed": true
+    },
+    {
+      "name": "admin deletes an unattributed item",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "delete",
+      "resource": { "id": "ex-3", "created_by": "" },
+      "allowed": true
+    },
+    {
+      "name": "a user may mint a user invite — sign-up is open",
+      "$why": "Not a secret system. Gating sign-up would only mean a human must find someone with a CLI before their agent can be honest about its own name.",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "mint_invite",
+      "resource": { "role": "user" },
+      "allowed": true
+    },
+    {
+      "name": "mint_invite with no role named is a user invite",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "mint_invite",
+      "allowed": true
+    },
+    {
+      "name": "a user may NOT mint an admin invite",
+      "$why": "The one exception to open sign-up. Otherwise anyone self-promotes past the delete rules in one step and the tier is decorative.",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "mint_invite",
+      "resource": { "role": "admin" },
+      "allowed": false
+    },
+    {
+      "name": "escalation attempt is caught regardless of casing or padding",
+      "$why": "normalizeRole maps anything unrecognized to `user`, which is right for reading a stored row and wrong here — ' ADMIN ' must be checked, not quietly downgraded to an open sign-up.",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "mint_invite",
+      "resource": { "role": " ADMIN " },
+      "allowed": false
+    },
+    {
+      "name": "an admin may mint an admin invite",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "mint_invite",
+      "resource": { "role": "admin" },
+      "allowed": true
+    },
+    {
+      "name": "an admin may also mint a user invite",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "mint_invite",
+      "resource": { "role": "user" },
+      "allowed": true
+    },
+    {
+      "name": "a revoked user may not mint even a user invite",
+      "$why": "Revocation outranks the openness of sign-up, or revoking would not stop anything.",
+      "agent": { "actor": "laptop-claude", "role": "user", "revoked_at": 1753718400000 },
+      "action": "mint_invite",
+      "resource": { "role": "user" },
+      "allowed": false
+    },
+    {
+      "name": "user may delegate a user child",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "delegate_agent",
+      "resource": { "role": "user" },
+      "allowed": true
+    },
+    {
+      "name": "anonymous may not delegate",
+      "agent": null,
+      "action": "delegate_agent",
+      "resource": { "role": "user" },
+      "allowed": false
+    },
+    {
+      "name": "user delegation caps requested admin child to user",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "delegate_agent",
+      "resource": { "role": "admin" },
+      "allowed": true
+    },
+    {
+      "name": "user cannot manage agents",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "manage_agents",
+      "allowed": false
+    },
+    {
+      "name": "admin manages agents",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "manage_agents",
+      "allowed": true
+    },
+    {
+      "name": "user cannot manage silos",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "manage_silos",
+      "allowed": false
+    },
+    {
+      "name": "admin manages silos",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "manage_silos",
+      "allowed": true
+    },
+    {
+      "name": "revoked admin cannot manage silos",
+      "$why": "Revocation must outrank tier, or revoking an admin would be cosmetic.",
+      "agent": { "actor": "alex-admin", "role": "admin", "revoked_at": 1753718400000 },
+      "action": "manage_silos",
+      "allowed": false
+    },
+    {
+      "name": "user may call the roster (scoped to itself)",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "view_roster",
+      "allowed": true
+    },
+    {
+      "name": "admin may call the roster",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "view_roster",
+      "allowed": true
+    },
+    {
+      "name": "unidentified caller cannot read",
+      "agent": null,
+      "action": "read",
+      "allowed": false
+    },
+    {
+      "name": "unidentified caller cannot write",
+      "agent": null,
+      "action": "write",
+      "allowed": false
+    },
+    {
+      "name": "unidentified caller cannot delete even an unowned item",
+      "agent": null,
+      "action": "delete",
+      "resource": { "id": "ex-1", "created_by": "" },
+      "allowed": false
+    },
+    {
+      "name": "revoked admin loses every privilege",
+      "$why": "Revocation must outrank tier, or revoking an admin would be cosmetic.",
+      "agent": { "actor": "alex-admin", "role": "admin", "revoked_at": 1753718400000 },
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "allowed": false
+    },
+    {
+      "name": "revoked user cannot even read",
+      "agent": { "actor": "laptop-claude", "role": "user", "revoked_at": 1753718400000 },
+      "action": "read",
+      "allowed": false
+    },
+    {
+      "name": "unknown role falls back to user, not admin",
+      "$why": "A row written by a newer build with a role this one does not know must fail closed.",
+      "agent": { "actor": "mystery", "role": "superuser" },
+      "action": "manage_agents",
+      "allowed": false
+    },
+    {
+      "name": "empty role falls back to user",
+      "agent": { "actor": "mystery", "role": "" },
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "allowed": false
+    },
+    {
+      "name": "role match is case-insensitive",
+      "agent": { "actor": "alex-admin", "role": "ADMIN" },
+      "action": "manage_agents",
+      "allowed": true
+    },
+    {
+      "name": "unknown action is refused for an admin",
+      "$why": "Fail closed on actions an older build has no policy for.",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "reticulate_splines",
+      "allowed": false
+    }
+  ],
+  "$comment_decide": [
+    "`decide` cases cover the unidentified-caller policy. A surface declares a stance:",
+    "  operator  — unrestricted (the CLI: local trust root, and the only path that can",
+    "              mint the first invite, so it cannot be read-only without making the",
+    "              whole model unbootstrappable)",
+    "  read_only — may read every board, may change nothing (the browser, where a login",
+    "              box makes presenting a credential a real affordance)",
+    "  deny      — refuse outright (a hosted deployment; FEADS_REQUIRE_AGENT=1)",
+    "`require_identity: true` is an alias for stance `deny`. Absent stance = operator,",
+    "which is the pre-existing behaviour of every surface that passes nothing.",
+    "An identified caller ignores the stance entirely — its tier decides."
+  ],
+  "decide_cases": [
+    {
+      "name": "unidentified caller is the operator by default",
+      "agent": null,
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "require_identity": false,
+      "allowed": true,
+      "mode": "operator"
+    },
+    {
+      "name": "unidentified caller is refused when identity is required",
+      "$why": "Mode is `anonymous`, not `operator`: a refused caller was never granted operator standing, and reporting one would misdescribe why it was denied.",
+      "agent": null,
+      "action": "read",
+      "require_identity": true,
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "identified user still cannot delete another's item in operator-permissive mode",
+      "$why": "The flag governs unidentified callers only; presenting an identity opts you into your tier.",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "require_identity": false,
+      "allowed": false,
+      "mode": "agent"
+    },
+    {
+      "name": "identified admin deletes another's item",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "require_identity": false,
+      "allowed": true,
+      "mode": "agent"
+    },
+    {
+      "name": "revoked agent is denied even with the flag off",
+      "agent": { "actor": "laptop-claude", "role": "user", "revoked_at": 1753718400000 },
+      "action": "write",
+      "require_identity": false,
+      "allowed": false,
+      "mode": "agent"
+    },
+    {
+      "name": "a rejected credential is denied, not treated as the operator",
+      "$why": "The permissive fallback would invert revocation: a revoked user would become the operator and gain the ability to delete anything. Revoking would promote.",
+      "agent": null,
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "require_identity": false,
+      "credential_rejected": true,
+      "allowed": false,
+      "mode": "rejected"
+    },
+    {
+      "name": "a rejected credential cannot even read",
+      "agent": null,
+      "action": "read",
+      "require_identity": false,
+      "credential_rejected": true,
+      "allowed": false,
+      "mode": "rejected"
+    },
+    {
+      "name": "rejection outranks the require_identity flag being off or on",
+      "agent": null,
+      "action": "write",
+      "require_identity": true,
+      "credential_rejected": true,
+      "allowed": false,
+      "mode": "rejected"
+    },
+    {
+      "name": "a resolved agent ignores the rejected flag entirely",
+      "$why": "If an agent resolved, its credential verified; the flag can only describe a failed resolution.",
+      "agent": { "actor": "alex-admin", "role": "admin" },
+      "action": "delete",
+      "resource": { "id": "ex-2", "created_by": "other-agent" },
+      "require_identity": false,
+      "credential_rejected": true,
+      "allowed": true,
+      "mode": "agent"
+    },
+    {
+      "name": "read_only: an anonymous caller may read every board",
+      "$why": "The browser stance. Gating a look would be a ceremony that changes nothing about what a local shell can do.",
+      "agent": null,
+      "action": "read",
+      "unidentified": "read_only",
+      "allowed": true,
+      "mode": "anonymous"
+    },
+    {
+      "name": "read_only: an anonymous caller may not write",
+      "agent": null,
+      "action": "write",
+      "unidentified": "read_only",
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "read_only: an anonymous caller may not delete, even an unowned item",
+      "agent": null,
+      "action": "delete",
+      "resource": { "id": "ex-3", "created_by": "" },
+      "unidentified": "read_only",
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "read_only: an anonymous caller may not manage agents",
+      "agent": null,
+      "action": "manage_agents",
+      "unidentified": "read_only",
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "read_only: an anonymous caller may not manage silos",
+      "agent": null,
+      "action": "manage_silos",
+      "unidentified": "read_only",
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "read_only: an anonymous visitor MAY sign up",
+      "$why": "The one write an anonymous visitor may cause. Requiring an identity to get an identity is a closed loop.",
+      "agent": null,
+      "action": "mint_invite",
+      "resource": { "role": "user" },
+      "unidentified": "read_only",
+      "allowed": true,
+      "mode": "anonymous"
+    },
+    {
+      "name": "read_only: an anonymous visitor signing up cannot ask for admin",
+      "$why": "Otherwise sign-up is a self-promotion button and the tier means nothing.",
+      "agent": null,
+      "action": "mint_invite",
+      "resource": { "role": "admin" },
+      "unidentified": "read_only",
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "deny stance keeps sign-up open — enrollment is how a caller satisfies the requirement",
+      "$why": "Closing sign-up under deny made the stance unescapable from the dashboard (an identity is needed to get an identity). The hosted deployment sits behind platform SSO, so the door itself is already gated; the login route is ungated for the same reason.",
+      "agent": null,
+      "action": "mint_invite",
+      "resource": { "role": "user" },
+      "unidentified": "deny",
+      "allowed": true,
+      "mode": "anonymous"
+    },
+    {
+      "name": "deny stance still refuses an admin invite",
+      "$why": "Open sign-up must never be a self-promotion button — same rule as read_only.",
+      "agent": null,
+      "action": "mint_invite",
+      "resource": { "role": "admin" },
+      "unidentified": "deny",
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "operator may mint an admin invite — this is the bootstrap path",
+      "$why": "The first admin can only come from here. If this ever fails, no board can get its first admin.",
+      "agent": null,
+      "action": "mint_invite",
+      "resource": { "role": "admin" },
+      "unidentified": "operator",
+      "allowed": true,
+      "mode": "operator"
+    },
+    {
+      "name": "read_only: an identified user is unaffected by the stance",
+      "$why": "The stance describes unidentified callers only; a token opts you into your tier.",
+      "agent": { "actor": "laptop-claude", "role": "user" },
+      "action": "delete",
+      "resource": { "id": "ex-1", "created_by": "laptop-claude" },
+      "unidentified": "read_only",
+      "allowed": true,
+      "mode": "agent"
+    },
+    {
+      "name": "read_only: a rejected credential is still rejected, not read-only",
+      "$why": "Rejection outranks every stance — otherwise a revoked agent would quietly land in the anonymous bucket.",
+      "agent": null,
+      "action": "read",
+      "unidentified": "read_only",
+      "credential_rejected": true,
+      "allowed": false,
+      "mode": "rejected"
+    },
+    {
+      "name": "deny stance refuses even a read",
+      "agent": null,
+      "action": "read",
+      "unidentified": "deny",
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "require_identity is an alias for the deny stance",
+      "agent": null,
+      "action": "read",
+      "unidentified": "operator",
+      "require_identity": true,
+      "allowed": false,
+      "mode": "anonymous"
+    },
+    {
+      "name": "an unknown stance falls back to operator, not to deny",
+      "$why": "Failing closed here would break the CLI on a typo, which is worse than the typo. Unknown input must not silently change a working surface.",
+      "agent": null,
+      "action": "write",
+      "unidentified": "reticulated",
+      "allowed": true,
+      "mode": "operator"
+    },
+    {
+      "name": "an absent stance is operator, preserving pre-existing behaviour",
+      "agent": null,
+      "action": "write",
+      "allowed": true,
+      "mode": "operator"
+    }
+  ],
+  "$comment_resolution": [
+    "How a surface works out WHO is calling, before any policy question is asked.",
+    "",
+    "Resolution is as security-sensitive as the policy and was drifting between surfaces:",
+    "the CLI refused a token that would not verify while the UI treated it as merely",
+    "unidentified — which locally means operator, so revoking an agent PROMOTED it.",
+    "",
+    "`token`: absent | invalid | valid. `session`: absent | no_match | live | revoked.",
+    "Expected: which credential won (`via`), whether an agent resolved, and whether a",
+    "credential was presented and refused (`credential_rejected`, which then feeds",
+    "`decide`). Node: resolveAgentIdentity in boards/agents.mjs. Python: the MCP's",
+    "equivalent. Both must satisfy every row."
+  ],
+  "resolution_cases": [
+    {
+      "name": "a valid token wins outright",
+      "token": "valid",
+      "session": "absent",
+      "via": "token",
+      "resolves_agent": true,
+      "credential_rejected": false
+    },
+    {
+      "name": "a valid token wins even when a session would also match",
+      "token": "valid",
+      "session": "live",
+      "via": "token",
+      "resolves_agent": true,
+      "credential_rejected": false
+    },
+    {
+      "name": "an invalid token is a rejection",
+      "token": "invalid",
+      "session": "absent",
+      "via": "rejected",
+      "resolves_agent": false,
+      "credential_rejected": true
+    },
+    {
+      "name": "an invalid token is NOT rescued by a session that would have matched",
+      "$why": "An explicitly presented credential that fails must not fall back to a weaker one that succeeds, or revoking a token would be defeated by the session id sitting next to it.",
+      "token": "invalid",
+      "session": "live",
+      "via": "rejected",
+      "resolves_agent": false,
+      "credential_rejected": true
+    },
+    {
+      "name": "a session matching a live agent resolves it",
+      "token": "absent",
+      "session": "live",
+      "via": "session",
+      "resolves_agent": true,
+      "credential_rejected": false
+    },
+    {
+      "name": "a session matching a REVOKED agent is a rejection",
+      "$why": "The common door for a long-lived daemon: no token, but always a session id. Treating this as 'never registered' is what makes revocation promote an agent to operator.",
+      "token": "absent",
+      "session": "revoked",
+      "via": "rejected",
+      "resolves_agent": false,
+      "credential_rejected": true
+    },
+    {
+      "name": "a session matching nothing is not a rejection",
+      "$why": "Claude Code exports CLAUDE_CODE_SESSION_ID into every session whether or not anyone registered, so this must stay merely unidentified or nearly every caller is denied.",
+      "token": "absent",
+      "session": "no_match",
+      "via": "none",
+      "resolves_agent": false,
+      "credential_rejected": false
+    },
+    {
+      "name": "nothing presented at all is merely unidentified",
+      "token": "absent",
+      "session": "absent",
+      "via": "none",
+      "resolves_agent": false,
+      "credential_rejected": false
+    }
+  ],
+  "$comment_roster_scope_for": [
+    "`rosterScopeFor` is what surfaces call: the tier lookup plus the operator rule.",
+    "An operator run through the plain tier lookup resolves to `none` and shows an EMPTY",
+    "roster, which reads as 'no agents registered' rather than 'you were not recognized'."
+  ],
+  "roster_scope_for_cases": [
+    {
+      "name": "operator sees the whole roster",
+      "agent": null,
+      "require_identity": false,
+      "scope": "all"
+    },
+    {
+      "name": "unidentified caller sees nothing when identity is required",
+      "agent": null,
+      "require_identity": true,
+      "scope": "none"
+    },
+    {
+      "name": "an identified user still sees only itself",
+      "agent": { "id": "ag_1", "actor": "laptop-claude", "role": "user" },
+      "require_identity": false,
+      "scope": "self",
+      "agent_id": "ag_1"
+    },
+    {
+      "name": "an identified admin sees all",
+      "agent": { "id": "ag_2", "actor": "alex-admin", "role": "admin" },
+      "require_identity": false,
+      "scope": "all"
+    },
+    {
+      "name": "a revoked agent sees nothing even in permissive mode",
+      "$why": "Presenting a revoked identity must not fall through to operator.",
+      "agent": { "id": "ag_3", "actor": "x", "role": "admin", "revoked_at": 1753718400000 },
+      "require_identity": false,
+      "scope": "none"
+    },
+    {
+      "name": "a rejected credential sees nothing, not the whole roster",
+      "agent": null,
+      "require_identity": false,
+      "credential_rejected": true,
+      "scope": "none"
+    },
+    {
+      "name": "a read-only anonymous caller sees no roster at all",
+      "$why": "Who else is registered is administrative data; it does not ride along with read-only board access.",
+      "agent": null,
+      "unidentified": "read_only",
+      "scope": "none"
+    },
+    {
+      "name": "an operator still sees the whole roster",
+      "agent": null,
+      "unidentified": "operator",
+      "scope": "all"
+    }
+  ],
+  "roster_scope_cases": [
+    { "name": "no identity sees nothing", "agent": null, "scope": "none" },
+    {
+      "name": "user sees only itself",
+      "agent": { "id": "ag_1", "actor": "laptop-claude", "role": "user" },
+      "scope": "self",
+      "agent_id": "ag_1"
+    },
+    {
+      "name": "admin sees all",
+      "agent": { "id": "ag_2", "actor": "alex-admin", "role": "admin" },
+      "scope": "all"
+    },
+    {
+      "name": "revoked admin sees nothing, not everything",
+      "$why": "Revocation outranks tier here too, so a stale credential cannot read the roster.",
+      "agent": { "id": "ag_3", "actor": "alex-admin", "role": "admin", "revoked_at": 1753718400000 },
+      "scope": "none"
+    }
+  ]
+}

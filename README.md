@@ -1,215 +1,58 @@
-# bd - Beads
+# Feads
 
-**Distributed graph issue tracker for AI agents, powered by [Dolt](https://github.com/dolthub/dolt).**
+Feads is a locally runnable issue and agent-work tracker, forked from [Beads](https://github.com/gastownhall/beads). Its optional dashboard derives from [beads-ui](https://github.com/mantoni/beads-ui). The `bd` command and Go module retain Beads compatibility names; Feads adds board/agent coordination features. This fork is not endorsed by either upstream maintainer.
 
-**Platforms:** macOS, Linux, Windows, FreeBSD
+![Status: maintained](https://img.shields.io/badge/status-maintained-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-[![License](https://img.shields.io/github/license/gastownhall/beads)](LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/steveyegge/beads)](https://goreportcard.com/report/github.com/steveyegge/beads)
-[![Release](https://img.shields.io/github/v/release/gastownhall/beads)](https://github.com/gastownhall/beads/releases)
-[![npm version](https://img.shields.io/npm/v/@beads/bd)](https://www.npmjs.com/package/@beads/bd)
-[![PyPI](https://img.shields.io/pypi/v/beads-mcp)](https://pypi.org/project/beads-mcp/)
+Created at [Exowatt](https://exowatt.com).
 
-**Docs:** https://beads.gascity.com/
+## Status
 
-Beads provides a persistent, structured memory for coding agents. It replaces messy markdown plans with a dependency-aware graph, allowing agents to handle long-horizon tasks without losing context.
+Maintained. **Accounts/SSO mode is excluded from this release; per-agent token mode is the only supported authentication mode.** The local CLI and agent-token workflows need no company services. Directory sync and private deployment integrations are not bundled; silo mode refuses to start without an out-of-tree provider. The registry retains inert legacy account tables for migration compatibility but does not create provider-specific group columns. The UI remains optional.
 
-```mermaid
-flowchart LR
-    create["bd create<br/>new bead"] --> depgraph["dependency<br/>graph"]
-    depgraph --> ready["bd ready<br/>claimable work"]
-    ready --> claim["bd update --claim<br/>agent takes it"]
-    claim --> close["bd close<br/>work done"]
-    close -->|blockers released| ready
-    depgraph <-->|"bd dolt push / pull"| remote[("other machines<br/>and agents")]
+## Install
+
+Requires Go 1.26.5 or later, Git, a C/C++ toolchain, and ICU development headers/libraries for Dolt's regex dependency. On macOS with Homebrew (`brew install icu4c`), set `CGO_CPPFLAGS=-I$(brew --prefix icu4c)/include`, `CGO_CXXFLAGS=-I$(brew --prefix icu4c)/include`, `CGO_LDFLAGS=-L$(brew --prefix icu4c)/lib` and `PKG_CONFIG_PATH=$(brew --prefix icu4c)/lib/pkgconfig` before building if ICU is keg-only. Build from source (the module retains the upstream Go import path, so `go install github.com/exowatt-oss/feads/cmd/bd@latest` is not supported):
+
+```sh
+git clone https://github.com/exowatt-oss/feads.git
+cd feads
+go build -o ./bin/bd ./cmd/bd
 ```
 
-## ⚡ Quick Start
+The optional dashboard requires Node.js 22 or later; use the launcher in the quickstart below so it shares your scratch board with the MCP server. No private UI components are needed.
 
-```bash
-# Install beads CLI (system-wide - don't clone this repo into your project)
-curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh | bash
+## Quickstart
 
-# Initialize in YOUR project
-cd your-project
-bd init
+In a scratch project (not the Feads checkout):
 
-# Optional: refresh or install richer instructions for your agent
-bd setup codex    # Codex CLI - installs skill, AGENTS.md guidance, and hooks
-bd setup claude   # Claude Code - installs hooks/settings
-bd setup factory  # Factory.ai Droid - creates/updates AGENTS.md
+```sh
+mkdir my-tasks && cd my-tasks
+/path/to/feads/bin/bd init --stealth
+/path/to/feads/bin/bd create "Try Feads" -p 2
+/path/to/feads/bin/bd ready
 ```
 
-**Note:** Beads is a CLI tool you install once and use everywhere. You don't need to clone this repository into your project.
+The default embedded Dolt storage is local. No remote, SSO, directory, account, or company service is required. See `bd --help` for further commands.
 
-`bd init` creates or updates `AGENTS.md` by default so agents can discover the beads workflow, and also installs project Claude/Codex integrations unless you pass `--skip-agents` or `--stealth`. Use `bd setup --list` to see supported integrations, including `bd setup codex`, `bd setup factory`, `bd setup claude`, `bd setup mux`, `bd setup cursor`, and more. See [Agent and IDE setup](docs/getting-started/ide-setup.md).
+For the optional local dashboard and MCP endpoint, install [uv](https://docs.astral.sh/uv/) and Node.js 22+. From the Feads checkout run `BEADS_DIR=/absolute/path/to/my-tasks/.beads make run` (point at the scratch board initialized above). The launcher builds the UI and registers that board; it uses the local embedded Dolt library and does not require a separate Dolt server or `dolt` executable. The dashboard listens on `http://127.0.0.1:4141` and the MCP on `http://127.0.0.1:4143/mcp` (override with `FEADS_PORT`, `FEADS_MCP_PORT`, and `FEADS_HOST`). In the dashboard, create an agent and copy its one-time token; supply it to HTTP MCP clients as `Authorization: Bearer <agent-token>`, or set `FEADS_AGENT_TOKEN` for the MCP stdio process. Never put the token in an issue, commit, or chat. On an unauthenticated HTTP connection, the MCP is read-only except sign-up. Anyone who can reach an unprotected MCP endpoint can sign up for a write token. If binding `FEADS_HOST` off loopback, set `FEADS_REQUIRE_AGENT=1` and put the endpoint behind authentication before exposing it to other users or networks. The flag alone does not disable `agent_signup`; authenticated network access is essential. The dashboard offers the exact connection snippet after creating an agent.
 
-Manual copy-paste is only for unsupported agents, existing projects where you cannot rerun `bd init`/`bd setup`, or custom instruction files. In those cases, run `bd onboard` and paste the printed snippet into the file your agent reads.
+## The answering protocol
 
-If your agent is not covered by `bd setup`, add this minimal `AGENTS.md` section:
+For a notification that asks for a response, inspect the linked issue and comment on that issue with the answer before acknowledging the notification. Acknowledge only notifications you actually handled; do not wait for a reply before continuing independent work.
 
-```markdown
-This project uses bd (beads) for issue tracking.
+## Configuration
 
-- Run `bd prime` for workflow context and command guidance.
-- Use `bd ready`, `bd show <id>`, `bd update <id> --claim`, and `bd close <id>`.
-- Use `bd remember "insight"` for persistent project memory; do not create MEMORY.md files.
-- Do not use markdown TODO lists for task tracking.
-```
+Local mode is the default. Opt in to a Dolt server with `bd init --server` only if you already operate one. `FEADS_REGISTRY_DB` chooses the local board registry. Do not set `FEADS_SILO` in the standalone export: it requires an out-of-tree SSO verifier and fails closed. Hosted SSO/directory providers and trusted-worker identity headers are absent. `make run` clears an inherited `FEADS_AGENT_TOKEN` for the shared HTTP daemon; authenticate each client separately. Anonymous CLI metrics are **off by default**; `bd metrics on` explicitly opts in to the inherited upstream Beads collector, while `bd metrics off`, `BD_DISABLE_METRICS=1`, or `DO_NOT_TRACK=1` keeps them off. If you previously used upstream Beads, an existing `~/.config/bd/config.yaml` with `metrics.disabled: false` keeps metrics on; run `bd metrics off` or set `BD_DISABLE_METRICS=1`. Never use test credentials in production.
 
-## 🛠 Features
+## License
 
-* **[Dolt](https://github.com/dolthub/dolt)-Powered:** Version-controlled SQL database with cell-level merge, native branching, and built-in sync via Dolt remotes.
-* **Agent-Optimized:** JSON output, dependency tracking, and auto-ready task detection.
-* **Zero Conflict:** Hash-based IDs (`bd-a1b2`) prevent merge collisions in multi-agent/multi-branch workflows.
-* **Compaction:** Semantic "memory decay" summarizes old closed tasks to save context window.
-* **Messaging:** Message issue type with threading (`--thread`), ephemeral lifecycle, and mail delegation.
-* **Graph Links:** `relates-to`, `duplicates`, `supersedes`, and `replies-to` for knowledge graphs.
+[MIT](LICENSE), retaining the copyright of the Beads contributors. Exowatt's modifications are also MIT. See [NOTICE](NOTICE), [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) and the OFL notices alongside bundled fonts in `ui/app/fonts/`.
 
-## 📖 Essential Commands
+## Contributing
 
-| Command | Action |
-| --- | --- |
-| `bd ready` | List tasks with no open blockers. |
-| `bd create "Title" -p 0` | Create a P0 task. |
-| `bd update <id> --claim` | Atomically claim a task (sets assignee + in_progress). |
-| `bd dep add <child> <parent>` | Link tasks (blocks, related, parent-child). |
-| `bd show <id>` | View task details and audit trail. |
-| `bd prime` | Print agent workflow context and persistent memories. |
-| `bd remember "insight"` | Store project memory that `bd prime` injects later. |
+See [CONTRIBUTING](https://github.com/exowatt-oss/.github/blob/main/CONTRIBUTING.md). Sign off commits with `git commit -s` (DCO); no CLA is required. For generic fixes that also benefit Beads, consider proposing them upstream.
 
-## 🔗 Hierarchy & Workflow
+## Security
 
-Beads supports hierarchical IDs for epics:
-
-* `bd-a3f8` (Epic)
-* `bd-a3f8.1` (Task)
-* `bd-a3f8.1.1` (Sub-task)
-
-**Stealth Mode:** Run `bd init --stealth` to use Beads locally without committing files to the main repo. Perfect for personal use on shared projects. See [Git-Free Usage](#-git-free-usage) below.
-
-**Contributor vs Maintainer:** When working on open-source projects:
-
-* **Contributors** (forked repos): Run `bd init --contributor` to route planning issues to a separate repo (e.g., `~/.beads-planning`). Keeps experimental work out of PRs.
-* **Maintainers** (write access): Beads auto-detects maintainer role via SSH URLs or HTTPS with credentials. Only need `git config beads.role maintainer` if using GitHub HTTPS without credentials but you have write access.
-
-## 📦 Installation
-
-```bash
-brew install beads           # macOS / Linux (recommended)
-npm install -g @beads/bd     # Node.js users
-```
-
-**Other methods:** [install script](docs/getting-started/installation.md#quick-install-script-all-platforms) | [go install](docs/getting-started/installation.md#a-note-on-go-install-capability) | [from source](docs/getting-started/installation.md#build-dependencies-contributors-only) | [Windows](docs/getting-started/installation.md#windows-11) | [Arch AUR](docs/getting-started/installation.md#linux)
-
-**Requirements:** macOS, Linux, Windows, or FreeBSD. See [docs/getting-started/installation.md](docs/getting-started/installation.md) for complete installation guide.
-
-**Upgrading?** Replacing the binary is not always the whole story. Short
-version: sync remote-backed databases with your current `bd`, back up with
-`bd export --all`, upgrade the binary, then run `bd info --whats-new`,
-`bd hooks install`, and `bd version`. If the upgrade crosses a schema
-migration on a remote-backed database, exactly one designated clone runs
-`bd migrate` and `bd dolt push`; other clones install the new binary
-and run `bd bootstrap`. See the full
-[upgrade guide](https://beads.gascity.com/getting-started/upgrading)
-or [docs/getting-started/installation.md](docs/getting-started/installation.md#updating-bd).
-
-### Security And Verification
-
-Before trusting any downloaded binary, verify its checksum against the release `checksums.txt`.
-
-The install scripts verify release checksums before install. For manual installs, do this verification yourself before first run.
-
-On macOS, `scripts/install.sh` preserves the downloaded signature by default. Local ad-hoc re-signing is explicit opt-in via `BEADS_INSTALL_RESIGN_MACOS=1`.
-
-See [docs/reference/antivirus.md](docs/reference/antivirus.md) for Windows AV false-positive guidance and verification workflow.
-
-## 💾 Storage Modes
-
-Beads uses [Dolt](https://github.com/dolthub/dolt) as its database. Two modes:
-
-- **Embedded (default)** — `bd init`. Dolt runs in-process, data lives in
-  `.beads/embeddeddolt/`, single writer. Recommended for most users.
-- **Server** — `bd init --server`. Connects to an external `dolt sql-server`
-  for multiple concurrent writers; data lives in `.beads/dolt/`.
-
-Cross-machine sync uses `bd dolt push` / `bd dolt pull` against
-`refs/dolt/data` on your git remote; `.beads/issues.jsonl` is an export for
-viewers and interchange, not the source of truth or a backup. Back up and
-migrate between modes with `bd backup`; reclaim space with `bd prune` /
-`bd purge`.
-
-Full detail — connection flags, sockets, maintenance, backup, and migration —
-in the [Dolt backend guide](docs/architecture/dolt.md).
-
-### Schema Version Guard
-
-`bd` checks the database schema version at open time. If the database has been
-migrated by a newer binary and an older binary tries to open it, `bd` exits
-with an actionable error rather than issuing queries that fail with cryptic SQL
-errors:
-
-````
-schema version mismatch: database is at v45, binary knows up to v42 (3 migrations ahead)
-
-  Your bd binary is stale. Queries for dropped or renamed columns will fail
-  with cryptic SQL errors (e.g. "column X could not be found in any table in scope").
-
-  Rebuild from main:
-    CGO_ENABLED=0 go build -tags gms_pure_go ./cmd/bd
-
-  Or install the latest release:
-    CGO_ENABLED=0 go install -tags gms_pure_go github.com/steveyegge/beads/cmd/bd@latest
-
-  To proceed despite the risk (some read commands may still work):
-    BD_IGNORE_SCHEMA_SKEW=1 bd <command>
-    bd --ignore-schema-skew <command>
-````
-
-**When this fires:** only when the database schema is *ahead* of the binary
-(a newer binary migrated the database; this binary doesn't know those
-migrations). Normal upgrades, where the binary migrates the database forward,
-are unaffected.
-
-**Escape hatch:** `BD_IGNORE_SCHEMA_SKEW=1` (or `--ignore-schema-skew`) bypasses
-the guard with a warning on stderr. Use this only if you know the forward
-migrations are additive and safe for your specific workload.
-
-## 🌐 Community Tools
-
-See [docs/community-tools.md](docs/community-tools.md) for a curated list of community-built UIs, extensions, and integrations—including terminal interfaces, web UIs, editor extensions, and native apps.
-
-See [docs/related-projects.md](docs/related-projects.md) for adjacent or complementary projects that solve different problems in the same neighborhood.
-
-## 🚀 Git-Free Usage
-
-Beads works without git. The Dolt database is the storage backend — git
-integration (hooks, repo discovery, identity) is optional.
-
-```bash
-# Initialize without git
-export BEADS_DIR=/path/to/your/project/.beads
-bd init --quiet --stealth
-
-# All core commands work with zero git calls
-bd create "Fix auth bug" -p 1 -t bug
-bd ready --json
-bd update bd-a1b2 --claim
-bd prime
-bd close bd-a1b2 "Fixed"
-```
-
-`BEADS_DIR` tells bd where to put the `.beads/` database directory,
-bypassing git repo discovery. `--stealth` sets `no-git-ops: true` in
-config, disabling all git hook installation and git operations.
-
-This is useful for:
-- **Non-git VCS** (Sapling, Jujutsu, Piper) — no `.git/` directory needed
-- **Monorepos** — point `BEADS_DIR` at a specific subdirectory
-- **CI/CD** — isolated task tracking without repo-level side effects
-- **Evaluation/testing** — ephemeral databases in `/tmp`
-
-## 📝 Documentation
-
-* [Documentation site](https://beads.gascity.com/) | [Installing](docs/getting-started/installation.md) | [Sync Concepts](docs/core-concepts/sync-concepts.md) | [Agent Workflow](AGENT_INSTRUCTIONS.md) | [Copilot CLI Setup](docs/integrations/copilot-cli.md) | [Copilot VS Code MCP](docs/integrations/github-copilot.md) | [Articles](ARTICLES.md) | [Sync Branch Mode](docs/reference/protected-branches.md) | [Troubleshooting](docs/reference/troubleshooting.md) | [FAQ](docs/reference/faq.md)
-* [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/gastownhall/beads)
+Report vulnerabilities via [private vulnerability reporting](https://github.com/exowatt-oss/feads/security/advisories/new), or contact software@exowatt.com. See the [security policy](https://github.com/exowatt-oss/.github/blob/main/SECURITY.md); please do not open a public issue.

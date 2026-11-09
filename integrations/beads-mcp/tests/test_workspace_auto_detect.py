@@ -117,9 +117,39 @@ async def test_get_client_no_workspace_found():
 
         # Verify error message is helpful
         error_msg = str(exc_info.value)
-        assert "No beads workspace found" in error_msg
+        assert "No local Beads workspace found" in error_msg
         assert "context" in error_msg
         assert ".beads/" in error_msg
+    finally:
+        current_workspace.reset(token)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pg_dsn", ["", "postgresql://example/feads"])
+async def test_get_client_without_hosted_board_points_to_server_context(pg_dsn: str):
+    """Hosted callers must never be told to create a local Beads workspace."""
+    token = current_workspace.set(None)
+    env = {"FEADS_HOSTED": "1"}
+    if pg_dsn:
+        env["FEADS_PG_DSN"] = pg_dsn
+    try:
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("beads_mcp.tools._find_beads_db_in_tree", return_value=None),
+            pytest.raises(BdError) as exc_info,
+        ):
+            await _get_client()
+
+        error_msg = str(exc_info.value)
+        assert "No board is selected" in error_msg
+        assert "context(board='<board-id>')" in error_msg
+        # The id-routing escape hatch is named: most calls never needed a board.
+        assert "route by the id's prefix automatically" in error_msg
+        assert "server-side session state" in error_msg
+        # Zero local-setup residue: no CLI, no local workspace, nothing to configure.
+        assert ".beads" not in error_msg
+        assert "BEADS_WORKING_DIR" not in error_msg
+        assert 'context(workspace_root="/path/to/project")' not in error_msg
     finally:
         current_workspace.reset(token)
 

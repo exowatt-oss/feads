@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from beads_mcp.models import BlockedIssue, Comment, Issue, Stats, StatsSummary
+from beads_mcp.models import BlockedIssue, CloseIssueParams, Comment, Issue, Stats, StatsSummary
 from beads_mcp.tools import (
     beads_add_comment,
     beads_add_dependency,
@@ -155,6 +155,28 @@ async def test_beads_create_issue_with_labels(sample_issue):
 
 
 @pytest.mark.asyncio
+async def test_beads_update_issue_passes_metadata_patch(sample_issue):
+    """Metadata is a merge patch, including the documented effort shape."""
+    mock_client = AsyncMock()
+    mock_client.update = AsyncMock(return_value=sample_issue)
+    metadata_patch = {
+        "effort": {
+            "pre_ai_hours": 8,
+            "effective_hours": 2,
+            "ai_accel": 4,
+            "source": "test",
+        },
+        "obsolete": None,
+    }
+
+    with patch("beads_mcp.tools._get_client", return_value=mock_client):
+        await beads_update_issue(issue_id="bd-1", metadata=metadata_patch)
+
+    params = mock_client.update.call_args.args[0]
+    assert params.metadata == metadata_patch
+
+
+@pytest.mark.asyncio
 async def test_beads_update_issue(sample_issue):
     """Test beads_update_issue tool."""
     updated_issue = sample_issue.model_copy(update={"status": "blocked"})
@@ -187,8 +209,22 @@ async def test_beads_claim_issue(sample_issue):
 
 
 @pytest.mark.asyncio
+async def test_beads_close_issue_passes_metadata_patch(sample_issue):
+    mock_client = AsyncMock()
+    mock_client.close = AsyncMock(return_value=[sample_issue])
+    metadata_patch = {"effort": {"pre_ai_hours": 3}, "obsolete": None}
+
+    with patch("beads_mcp.tools._get_client", return_value=mock_client):
+        await beads_close_issue(issue_id="bd-1", metadata=metadata_patch)
+
+    mock_client.close.assert_called_once_with(
+        CloseIssueParams(issue_id="bd-1", reason="Completed", force=False, metadata=metadata_patch)
+    )
+
+
+@pytest.mark.asyncio
 async def test_beads_close_issue(sample_issue):
-    """Test beads_close_issue tool."""
+    """Test beads_close_issue tool preserves the default protection."""
     closed_issue = sample_issue.model_copy(update={"status": "closed", "closed_at": "2024-01-02T00:00:00Z"})
     mock_client = AsyncMock()
     mock_client.close = AsyncMock(return_value=[closed_issue])
@@ -198,7 +234,21 @@ async def test_beads_close_issue(sample_issue):
 
     assert len(issues) == 1
     assert issues[0].status == "closed"
-    mock_client.close.assert_called_once()
+    mock_client.close.assert_called_once_with(CloseIssueParams(issue_id="bd-1", reason="Completed", force=False))
+
+
+@pytest.mark.asyncio
+async def test_beads_close_issue_force(sample_issue):
+    """Test force is threaded through the tool into the client params."""
+    closed_issue = sample_issue.model_copy(update={"status": "closed", "closed_at": "2024-01-02T00:00:00Z"})
+    mock_client = AsyncMock()
+    mock_client.close = AsyncMock(return_value=[closed_issue])
+
+    with patch("beads_mcp.tools._get_client", return_value=mock_client):
+        issues = await beads_close_issue(issue_id="bd-1", reason="Stale", force=True)
+
+    assert issues[0].status == "closed"
+    mock_client.close.assert_called_once_with(CloseIssueParams(issue_id="bd-1", reason="Stale", force=True))
 
 
 @pytest.mark.asyncio
@@ -537,6 +587,51 @@ async def test_update_issue_routes_open_to_reopen(sample_issue):
     assert result[0].status == "open"
     mock_client.reopen.assert_called_once()
     mock_client.update.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_issue_forwards_a_label_replacement(sample_issue):
+    """A named label set reaches the store verbatim, including the empty one.
+
+    `[]` and `None` are different instructions — clear them versus leave them — and the
+    only place that distinction can be lost is this hand-off.
+    """
+    mock_client = AsyncMock()
+    mock_client.update = AsyncMock(return_value=sample_issue)
+
+    with patch("beads_mcp.tools._get_client", return_value=mock_client):
+        await beads_update_issue(issue_id="bd-1", labels=[])
+    assert mock_client.update.call_args.args[0].labels == []
+
+    with patch("beads_mcp.tools._get_client", return_value=mock_client):
+        await beads_update_issue(issue_id="bd-1", labels=["a", "b"])
+    assert mock_client.update.call_args.args[0].labels == ["a", "b"]
+
+
+@pytest.mark.asyncio
+async def test_update_issue_leaves_labels_unnamed_when_not_passed(sample_issue):
+    mock_client = AsyncMock()
+    mock_client.update = AsyncMock(return_value=sample_issue)
+
+    with patch("beads_mcp.tools._get_client", return_value=mock_client):
+        await beads_update_issue(issue_id="bd-1", priority=1)
+
+    assert mock_client.update.call_args.args[0].labels is None
+
+
+@pytest.mark.asyncio
+async def test_update_issue_applies_labels_even_when_the_status_routes_away(sample_issue):
+    """reopen/close carry no labels, so the relabel is applied rather than dropped."""
+    mock_client = AsyncMock()
+    mock_client.update = AsyncMock(return_value=sample_issue)
+    mock_client.reopen = AsyncMock(return_value=[sample_issue.model_copy(update={"status": "open"})])
+
+    with patch("beads_mcp.tools._get_client", return_value=mock_client):
+        result = await beads_update_issue(issue_id="bd-1", status="open", labels=["fresh"])
+
+    assert mock_client.update.call_args.args[0].labels == ["fresh"]
+    mock_client.reopen.assert_called_once()
+    assert isinstance(result, list) and result[0].status == "open"
 
 
 @pytest.mark.asyncio

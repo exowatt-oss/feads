@@ -518,3 +518,35 @@ async def test_init_creates_beads_directory(
 
     # Verify success message
     assert "initialized" in result.lower() or "created" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_workspace_binding_round_trips_through_real_bd(bd_client, temp_workspace):
+    """`create --metadata` and `update --set-metadata` are real bd flags, not just argv spelling.
+
+    The subprocess-mocked tests in test_workspace_state.py prove what the client *says*;
+    this proves bd accepts it, stores it, and that `--has-metadata-key` finds it again.
+    """
+    from beads_mcp.agents import request_authorization
+
+    token = request_authorization.set(None)
+    try:
+        epic = await bd_client.create(CreateIssueParams(title="Session epic", issue_type="epic", host="mbp"))
+    finally:
+        request_authorization.reset(token)
+    assert epic.workspace_dir == str(temp_workspace), "epic defaults workspace_dir from the resolved workspace"
+    assert epic.host == "mbp"
+    assert epic.session_id is None
+
+    shown = await bd_client.show(ShowIssueParams(issue_id=epic.id))
+    assert (shown.workspace_dir, shown.host) == (str(temp_workspace), "mbp")
+
+    rebound = await bd_client.update(
+        UpdateIssueParams(issue_id=epic.id, session_id="sess-9", workspace_dir="/moved")
+    )
+    assert (rebound.workspace_dir, rebound.session_id, rebound.host) == ("/moved", "sess-9", "mbp")
+
+    await bd_client.create(CreateIssueParams(title="unbound child", issue_type="task"))
+    listed = await bd_client.list_issues(ListIssuesParams(workspace_dir_prefix="/moved"))
+    assert [(i.id, i.session_id) for i in listed] == [(epic.id, "sess-9")]
+    assert await bd_client.list_issues(ListIssuesParams(workspace_dir_prefix="/mov")) == []

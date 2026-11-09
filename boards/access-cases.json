@@ -1,0 +1,2495 @@
+{
+ "$comment": "Shared vectors for boards/access.mjs decideAccess and beads_mcp/access.py decide_access. Hand-derived from the excluded hosted-provider design; both suites load this file.",
+ "principals": {
+  "super_browser": {
+   "kind": "user",
+   "via": "sso",
+   "user_id": "u_f",
+   "actor": "mira",
+   "aliases": [
+    "mira",
+    "alex-laptop"
+   ],
+   "is_superadmin": true,
+   "agents_all_spaces": false,
+   "memberships": {
+    "sp_team_a": "member"
+   }
+  },
+  "super_agent": {
+   "kind": "user",
+   "via": "legacy_token",
+   "user_id": "u_f",
+   "actor": "mira",
+   "aliases": [
+    "mira",
+    "alex-laptop"
+   ],
+   "is_superadmin": true,
+   "agents_all_spaces": false,
+   "memberships": {
+    "sp_team_a": "member"
+   }
+  },
+  "super_agent_all": {
+   "kind": "user",
+   "via": "personal_token",
+   "user_id": "u_f",
+   "actor": "mira",
+   "aliases": [
+    "mira"
+   ],
+   "is_superadmin": true,
+   "agents_all_spaces": true,
+   "memberships": {
+    "sp_team_a": "member"
+   }
+  },
+  "member_sw": {
+   "kind": "user",
+   "via": "sso",
+   "user_id": "u_r",
+   "actor": "dana",
+   "aliases": [
+    "dana",
+    "dana-laptop"
+   ],
+   "is_superadmin": false,
+   "memberships": {
+    "sp_team_a": "member"
+   }
+  },
+  "member_sw_agent": {
+   "kind": "user",
+   "via": "legacy_token",
+   "user_id": "u_r",
+   "actor": "dana",
+   "aliases": [
+    "dana",
+    "dana-laptop"
+   ],
+   "is_superadmin": false,
+   "memberships": {
+    "sp_team_a": "member"
+   }
+  },
+  "member_sw_flag_ignored": {
+   "kind": "user",
+   "via": "personal_token",
+   "user_id": "u_r",
+   "actor": "dana",
+   "aliases": [
+    "dana"
+   ],
+   "is_superadmin": false,
+   "agents_all_spaces": true,
+   "memberships": {
+    "sp_team_a": "member"
+   }
+  },
+  "team_b": {
+   "kind": "user",
+   "via": "sso",
+   "user_id": "u_z",
+   "actor": "eve",
+   "aliases": [
+    "eve"
+   ],
+   "memberships": {
+    "sp_team_b": "member"
+   }
+  },
+  "team_b_admin": {
+   "kind": "user",
+   "via": "sso",
+   "user_id": "u_e",
+   "actor": "finn",
+   "aliases": [
+    "finn"
+   ],
+   "memberships": {
+    "sp_team_b": "admin"
+   }
+  },
+  "team_b_admin_agent": {
+   "kind": "user",
+   "via": "personal_token",
+   "user_id": "u_e",
+   "actor": "finn",
+   "aliases": [
+    "finn"
+   ],
+   "memberships": {
+    "sp_team_b": "admin"
+   }
+  },
+  "team_b_edge": {
+   "kind": "user",
+   "via": "worker_email",
+   "user_id": "u_z",
+   "actor": "eve",
+   "aliases": [
+    "eve"
+   ],
+   "memberships": {
+    "sp_team_b": "member"
+   }
+  },
+  "no_spaces": {
+   "kind": "user",
+   "via": "sso",
+   "user_id": "u_n",
+   "actor": "newbie",
+   "aliases": [
+    "newbie"
+   ],
+   "memberships": {}
+  },
+  "legacy": {
+   "kind": "legacy_agent",
+   "via": "token",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "legacy_role": "user",
+   "default_space": "sp_team_a"
+  },
+  "legacy_admin": {
+   "kind": "legacy_agent",
+   "via": "token",
+   "actor": "old-admin",
+   "aliases": [
+    "old-admin"
+   ],
+   "legacy_role": "admin",
+   "default_space": "sp_team_a"
+  },
+  "system_sw": {
+   "kind": "system",
+   "via": "system_key",
+   "key_spaces": [
+    "sp_team_a"
+   ],
+   "minter_memberships": {
+    "sp_team_a": "member"
+   },
+   "minter_live": true
+  },
+  "system_shrunk": {
+   "kind": "system",
+   "via": "system_key",
+   "key_spaces": [
+    "sp_team_a",
+    "sp_team_b"
+   ],
+   "minter_memberships": {
+    "sp_team_a": "member"
+   },
+   "minter_live": true
+  },
+  "system_dead": {
+   "kind": "system",
+   "via": "system_key",
+   "key_spaces": [
+    "sp_team_a"
+   ],
+   "minter_memberships": {
+    "sp_team_a": "member"
+   },
+   "minter_live": false
+  },
+  "system_super_all": {
+   "kind": "system",
+   "via": "system_key",
+   "key_spaces": [
+    "sp_team_b"
+   ],
+   "minter_memberships": {},
+   "minter_superadmin": true,
+   "minter_agents_all_spaces": true,
+   "minter_live": true
+  },
+  "operator": {
+   "kind": "operator",
+   "via": "none"
+  },
+  "anonymous": {
+   "kind": "anonymous"
+  },
+  "garbage": {
+   "kind": "root",
+   "is_superadmin": true,
+   "memberships": {
+    "sp_team_a": "admin"
+   }
+  },
+  "service": {
+   "kind": "service",
+   "via": "legacy_token",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {
+    "sp_team_a": "member"
+   },
+   "read_only": false,
+   "steward_actor": "mira"
+  },
+  "service_key": {
+   "kind": "service",
+   "via": "service_key",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {
+    "sp_team_a": "member"
+   },
+   "read_only": false,
+   "steward_actor": "mira"
+  },
+  "service_ro": {
+   "kind": "service",
+   "via": "legacy_token",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {
+    "sp_team_a": "member"
+   },
+   "read_only": true,
+   "steward_actor": "mira"
+  },
+  "service_ro_unset": {
+   "kind": "service",
+   "via": "legacy_token",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {
+    "sp_team_a": "member"
+   },
+   "steward_actor": "mira"
+  },
+  "service_ro_string": {
+   "kind": "service",
+   "via": "legacy_token",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {
+    "sp_team_a": "member"
+   },
+   "read_only": "false",
+   "steward_actor": "mira"
+  },
+  "service_admin_row": {
+   "kind": "service",
+   "via": "legacy_token",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {
+    "sp_team_a": "admin"
+   },
+   "read_only": false,
+   "steward_actor": "mira"
+  },
+  "service_forged": {
+   "kind": "service",
+   "via": "sso",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {
+    "sp_team_b": "member"
+   },
+   "read_only": false,
+   "steward_actor": "mira",
+   "is_superadmin": true,
+   "agents_all_spaces": true
+  },
+  "service_none": {
+   "kind": "service",
+   "via": "legacy_token",
+   "user_id": "u_svc_botty1",
+   "actor": "botty1",
+   "aliases": [
+    "botty1"
+   ],
+   "memberships": {},
+   "read_only": false,
+   "steward_actor": "mira"
+  },
+  "team_b_sw_admin": {
+   "kind": "user",
+   "via": "sso",
+   "user_id": "u_e2",
+   "actor": "finn2",
+   "aliases": [
+    "finn2"
+   ],
+   "memberships": {
+    "sp_team_b": "admin",
+    "sp_team_a": "admin"
+   }
+  }
+ },
+ "cases": [
+  {
+   "principal": "super_browser",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw_flag_ignored",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw_flag_ignored",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw_flag_ignored",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_edge",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_edge",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b_edge",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "no_spaces",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "no_spaces",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "no_spaces",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "legacy",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "legacy",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "legacy",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "legacy_admin",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "legacy_admin",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "legacy_admin",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "system_sw",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_shrunk",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "system_shrunk",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_shrunk",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_dead",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_dead",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_dead",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_super_all",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_super_all",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "system_super_all",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "operator",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "operator",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "operator",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "anonymous",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "anonymous",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "anonymous",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "garbage",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "garbage",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "garbage",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_browser",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b_edge",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_edge",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "legacy",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "legacy",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_super_all",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_super_all",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "operator",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "operator",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "anonymous",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "anonymous",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "garbage",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "garbage",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "item_write",
+   "resource": {},
+   "allowed": false,
+   "note": "missing space denies"
+  },
+  {
+   "principal": "member_sw",
+   "action": "item_write",
+   "resource": {
+    "space": ""
+   },
+   "allowed": false,
+   "note": "empty space denies"
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "legacy",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b",
+   "action": "board_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b",
+   "action": "board_manage",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true,
+   "note": "plain member, from the dashboard"
+  },
+  {
+   "principal": "team_b",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true,
+   "note": "plain member of the target space"
+  },
+  {
+   "principal": "team_b",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_edge",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "system_sw",
+   "action": "board_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false,
+   "note": "system keys never write"
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "board_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true,
+   "note": "plain member"
+  },
+  {
+   "principal": "super_browser",
+   "action": "dep_link",
+   "resource": {
+    "space": "sp_team_a",
+    "other_space": "sp_team_b"
+   },
+   "allowed": false,
+   "note": "no cross-space deps even for superadmin"
+  },
+  {
+   "principal": "member_sw",
+   "action": "dep_link",
+   "resource": {
+    "space": "sp_team_a",
+    "other_space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "dep_link",
+   "resource": {
+    "space": "sp_team_a",
+    "other_space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "dep_link",
+   "resource": {
+    "space": "sp_team_a",
+    "other_space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana-laptop"
+   },
+   "allowed": true,
+   "note": "alias owns it"
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": true,
+   "note": "case-insensitive"
+  },
+  {
+   "principal": "member_sw",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "mira"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": false,
+   "note": "superadmin delete-any is a dashboard power: a superadmin's agent token deletes like a member (own items only)"
+  },
+  {
+   "principal": "super_browser",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": true,
+   "note": "superadmin, from the dashboard (SSO)"
+  },
+  {
+   "principal": "super_browser",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "eve"
+   },
+   "allowed": true,
+   "note": "superadmin browser reads every space"
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "eve"
+   },
+   "allowed": false,
+   "note": "access-all widens reach, not delete-any"
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "mira"
+   },
+   "allowed": true,
+   "note": "own item"
+  },
+  {
+   "principal": "team_b_admin_agent",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "eve"
+   },
+   "allowed": true,
+   "note": "space admin, on any surface"
+  },
+  {
+   "principal": "super_agent",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "eve"
+   },
+   "allowed": false,
+   "note": "superadmin agent without access-all"
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "eve"
+   },
+   "allowed": true,
+   "note": "space admin"
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "finn"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "legacy",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "botty1"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "legacy",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "legacy_admin",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "system_sw",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": ""
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_browser",
+   "action": "space_create",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "super_agent",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "super_agent",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "operator",
+   "action": "space_create",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "operator",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "operator",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "system_sw",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "anonymous",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "anonymous",
+   "action": "space_delete",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "anonymous",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "super_browser",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin_agent",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false,
+   "note": "agents cannot manage spaces"
+  },
+  {
+   "principal": "team_b",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_browser",
+   "action": "self_settings",
+   "resource": {
+    "owner_user_id": "u_f"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "self_settings",
+   "resource": {
+    "owner_user_id": "u_t"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "self_settings",
+   "resource": {
+    "owner_user_id": "u_r"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent",
+   "action": "self_settings",
+   "resource": {
+    "owner_user_id": "u_f"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": false,
+   "note": "a token cannot mint tokens"
+  },
+  {
+   "principal": "team_b_edge",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "legacy",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "connection_manage",
+   "resource": {
+    "owner_user_id": "u_r"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "connection_manage",
+   "resource": {
+    "owner_user_id": "u_f"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_browser",
+   "action": "connection_manage",
+   "resource": {
+    "owner_user_id": "u_r"
+   },
+   "allowed": false,
+   "note": "even superadmins cannot use others' connections"
+  },
+  {
+   "principal": "member_sw",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_a",
+     "sp_team_b"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": []
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_browser",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_b"
+    ]
+   },
+   "allowed": false,
+   "note": "capped at agent spaces"
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_b"
+    ]
+   },
+   "allowed": false,
+   "note": "not from a token"
+  },
+  {
+   "principal": "team_b",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_b"
+    ]
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "system_key_manage",
+   "resource": {
+    "owner_user_id": "u_r"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw",
+   "action": "system_key_manage",
+   "resource": {
+    "owner_user_id": "u_z"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_browser",
+   "action": "system_key_manage",
+   "resource": {
+    "owner_user_id": "u_z"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "member_sw_agent",
+   "action": "directory_read",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "system_sw",
+   "action": "directory_read",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "anonymous",
+   "action": "directory_read",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "operator",
+   "action": "nuke",
+   "resource": {},
+   "allowed": false,
+   "note": "unknown action denies even operator"
+  },
+  {
+   "principal": "super_browser",
+   "action": "read",
+   "resource": {},
+   "allowed": false,
+   "note": "legacy action names are not access actions"
+  },
+  {
+   "principal": "service",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_key",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service_key",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service_ro",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro_unset",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service_ro_unset",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service_forged",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_c"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_none",
+   "action": "space_read",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_key",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service",
+   "action": "board_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service",
+   "action": "dep_link",
+   "resource": {
+    "space": "sp_team_a",
+    "other_space": "sp_team_a"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service",
+   "action": "dep_link",
+   "resource": {
+    "space": "sp_team_a",
+    "other_space": "sp_team_b"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro_unset",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro_unset",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro_string",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro_string",
+   "action": "board_create",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "botty1"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_ro",
+   "action": "dep_link",
+   "resource": {
+    "space": "sp_team_a",
+    "other_space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_none",
+   "action": "item_write",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "botty1"
+   },
+   "allowed": true
+  },
+  {
+   "principal": "service",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_a",
+    "created_by": "dana"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "item_delete",
+   "resource": {
+    "space": "sp_team_b",
+    "created_by": "eve"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "space_delete",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "self_settings",
+   "resource": {
+    "owner_user_id": "u_svc_botty1"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "space_delete",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_admin_row",
+   "action": "self_settings",
+   "resource": {
+    "owner_user_id": "u_svc_botty1"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "space_create",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "space_delete",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "accounts_admin",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "space_manage",
+   "resource": {
+    "space": "sp_team_a"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "connection_mint",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "system_key_mint",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service_forged",
+   "action": "self_settings",
+   "resource": {
+    "owner_user_id": "u_svc_botty1"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "connection_manage",
+   "resource": {
+    "owner_user_id": "u_svc_botty1"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "system_key_manage",
+   "resource": {
+    "owner_user_id": "u_svc_botty1"
+   },
+   "allowed": false
+  },
+  {
+   "principal": "service",
+   "action": "directory_read",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "service_ro",
+   "action": "directory_read",
+   "resource": {},
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_browser",
+   "action": "service_manage",
+   "resource": {
+    "spaces": []
+   },
+   "allowed": true
+  },
+  {
+   "principal": "super_agent",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "super_agent_all",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "member_sw",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_b"
+    ]
+   },
+   "allowed": true
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_b",
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "service_manage",
+   "resource": {
+    "spaces": []
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin",
+   "action": "service_manage",
+   "resource": {},
+   "allowed": false
+  },
+  {
+   "principal": "team_b_admin_agent",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_b"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "team_b_sw_admin",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_b",
+     "sp_team_a"
+    ]
+   },
+   "allowed": true
+  },
+  {
+   "principal": "legacy",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "system_sw",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "operator",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": true
+  },
+  {
+   "principal": "anonymous",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  },
+  {
+   "principal": "garbage",
+   "action": "service_manage",
+   "resource": {
+    "spaces": [
+     "sp_team_a"
+    ]
+   },
+   "allowed": false
+  }
+ ],
+ "accessible_spaces": [
+  {
+   "principal": "super_browser",
+   "all": true
+  },
+  {
+   "principal": "super_agent",
+   "all": false,
+   "spaces": [
+    "sp_team_a"
+   ]
+  },
+  {
+   "principal": "super_agent_all",
+   "all": true
+  },
+  {
+   "principal": "system_shrunk",
+   "all": false,
+   "spaces": [
+    "sp_team_a"
+   ]
+  },
+  {
+   "principal": "system_super_all",
+   "all": false,
+   "spaces": [
+    "sp_team_b"
+   ]
+  },
+  {
+   "principal": "legacy",
+   "all": false,
+   "spaces": [
+    "sp_team_a"
+   ]
+  },
+  {
+   "principal": "anonymous",
+   "all": false,
+   "spaces": []
+  },
+  {
+   "principal": "operator",
+   "all": true
+  },
+  {
+   "principal": "garbage",
+   "all": false,
+   "spaces": []
+  },
+  {
+   "principal": "service",
+   "all": false,
+   "spaces": [
+    "sp_team_a"
+   ]
+  },
+  {
+   "principal": "service_ro",
+   "all": false,
+   "spaces": [
+    "sp_team_a"
+   ]
+  },
+  {
+   "principal": "service_forged",
+   "all": false,
+   "spaces": [
+    "sp_team_b"
+   ]
+  },
+  {
+   "principal": "service_none",
+   "all": false,
+   "spaces": []
+  }
+ ]
+}

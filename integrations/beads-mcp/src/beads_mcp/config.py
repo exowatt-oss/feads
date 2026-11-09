@@ -5,8 +5,29 @@ import shutil
 import sys
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PG_DSN_ENV = "FEADS_PG_DSN"
+
+
+def normalize_pg_dsn(value: str | None) -> str | None:
+    """The one rule for "is the Postgres store switched on".
+
+    A module-level function rather than only a field validator because the answer is
+    needed on the hot path — every tool call asks it — and building a whole
+    :class:`Config` there would run the ``beads_path`` validator's ``shutil.which``
+    PATH scan for a question that does not depend on bd at all. Both callers route
+    through here so the two can never drift.
+
+    Empty or whitespace means unset. Deployment templates spell "off" as ``""``, and a
+    falsy-but-present DSN reaching asyncpg would fail at connect time — long after the
+    point where the operator could tell which switch they had actually thrown.
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
 
 
 def _default_beads_path() -> str:
@@ -29,7 +50,7 @@ def _default_beads_path() -> str:
 class Config(BaseSettings):
     """Server configuration loaded from environment variables."""
 
-    model_config = SettingsConfigDict(env_prefix="")
+    model_config = SettingsConfigDict(env_prefix="", populate_by_name=True)
 
     beads_path: str = Field(default_factory=_default_beads_path)
     beads_dir: str | None = None
@@ -38,6 +59,27 @@ class Config(BaseSettings):
     beads_no_auto_flush: bool = False
     beads_no_auto_import: bool = False
     beads_working_dir: str | None = None
+
+    # The strangler switch. Set it and issue data is read from and written to Postgres
+    # (see :mod:`beads_mcp.pgstore`); leave it unset and every issue tool keeps
+    # spawning `bd` exactly as before, which is what makes the cutover reversible by
+    # unsetting one variable. It lives here rather than being read from os.environ at
+    # the call site so it is configured the same way BEADS_PATH is, and so the two
+    # cannot be resolved by different rules.
+    #
+    # The alias is explicit because the field is the one setting in this class that is
+    # NOT part of upstream beads' BEADS_* namespace: it is a feads deployment concern,
+    # and env_prefix="" would otherwise have named it PG_DSN — a variable generic
+    # enough to already mean something else on a shared host.
+    pg_dsn: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEADS_PG_DSN", "pg_dsn"),
+    )
+
+    @field_validator("pg_dsn")
+    @classmethod
+    def validate_pg_dsn(cls, v: str | None) -> str | None:
+        return normalize_pg_dsn(v)
 
     @field_validator("beads_path")
     @classmethod
@@ -165,7 +207,9 @@ def load_config() -> Config:
             + "  BEADS_WORKING_DIR     - Working directory for bd commands (default: $PWD or cwd)\n"
             + "  BEADS_ACTOR           - Actor name for audit trail (default: $USER)\n"
             + "  BEADS_NO_AUTO_FLUSH   - Disable automatic JSONL sync (default: false)\n"
-            + "  BEADS_NO_AUTO_IMPORT  - Disable automatic JSONL import (default: false)"
+            + "  BEADS_NO_AUTO_IMPORT  - Disable automatic JSONL import (default: false)\n"
+            + "  FEADS_PG_DSN          - Read/write issue data in Postgres instead of "
+            + "spawning bd (default: unset)"
         )
         print(error_msg, file=sys.stderr)
         raise ConfigError(error_msg) from e

@@ -242,7 +242,13 @@ class TestPathCanonicalization:
             assert canonical != str(parent.resolve())
 
     def test_canonicalize_no_beads_uses_git_toplevel(self):
-        """Test path without .beads falls back to git toplevel."""
+        """Test path without .beads falls back to git toplevel.
+
+        This is the *guessed* workspace path — auto-detection, or a BEADS_WORKING_DIR
+        nobody asked for on this call. A workspace named explicitly never reaches
+        here: `_get_client` resolves it with `_resolve_beads_project_at` and errors
+        rather than walking up (see tests/test_board_binding.py).
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             project = Path(tmpdir) / "project"
             project.mkdir()
@@ -489,7 +495,7 @@ class TestEdgeCases:
         ):
             await beads_ready_work()
 
-        assert "No beads workspace found" in str(exc_info.value)
+        assert "No local Beads workspace found" in str(exc_info.value)
 
     def test_canonicalize_path_cached(self, temp_projects):
         """Test path canonicalization is cached for performance."""

@@ -1,0 +1,10 @@
+{
+  "name": "feads-pgstore",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Postgres schema, views, importer and parity harness for feads Option C",
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

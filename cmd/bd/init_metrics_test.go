@@ -97,6 +97,7 @@ func metricsTestEnv(home string, extra ...string) []string {
 
 func runBdInitForMetrics(t *testing.T, home string, args ...string) {
 	t.Helper()
+	writeUserMetricsDisabled(t, home, false)
 	bd := buildEmbeddedBD(t)
 	repo, err := testTempDir("bd-metrics-repo-*")
 	if err != nil {
@@ -230,7 +231,13 @@ func TestInitMetricsEnvConfigPrecedence(t *testing.T) {
 	}{
 		{
 			name:     "default_no_config_no_env",
-			wantEvtq: true,
+			wantEvtq: false,
+		},
+		{
+			name:           "explicit_config_opt_in",
+			setUserConfig:  true,
+			configDisabled: false,
+			wantEvtq:       true,
 		},
 		{
 			name:           "config_disabled_env_unset",
@@ -278,13 +285,25 @@ func TestInitMetricsEnvConfigPrecedence(t *testing.T) {
 	}
 }
 
+func TestInitDefaultOffLeavesUserConfigAbsent(t *testing.T) {
+	home, err := testTempDir("bd-metrics-default-off-home-*")
+	if err != nil {
+		t.Fatalf("temp home: %v", err)
+	}
+	runBdInitWithEnv(t, home, nil)
+	if _, err := os.Stat(filepath.Join(home, ".config", "bd", "config.yaml")); !os.IsNotExist(err) {
+		t.Fatalf("default-off metrics created a user config: %v", err)
+	}
+}
+
 func TestInitBootstrapsUserConfigWhenMissing(t *testing.T) {
 	home, err := testTempDir("bd-bootstrap-fresh-*")
 	if err != nil {
 		t.Fatalf("temp home: %v", err)
 	}
 
-	runBdInitWithEnv(t, home, nil)
+	// Explicit opt-in exercises the user-config bootstrap path.
+	runBdInitWithEnv(t, home, []string{"BD_DISABLE_METRICS=0"})
 
 	path := filepath.Join(home, ".config", "bd", "config.yaml")
 	body, err := os.ReadFile(path)
@@ -316,7 +335,8 @@ func TestInitPreservesExistingMetricsValuesAndFillsMissingLeaves(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 
-	runBdInitWithEnv(t, home, nil)
+	// Explicit opt-in exercises the user-config bootstrap path.
+	runBdInitWithEnv(t, home, []string{"BD_DISABLE_METRICS=0"})
 
 	got, err := os.ReadFile(path)
 	if err != nil {
@@ -434,6 +454,7 @@ func TestMetricsTodoAliasEmitsSingleEvent(t *testing.T) {
 		t.Fatalf("temp repo: %v", err)
 	}
 	initGitRepoAt(t, repo)
+	writeUserMetricsDisabled(t, home, false)
 
 	// A store is needed so `bd todo` (which lists task issues) reaches its RunE.
 	if _, errOut := runBdForMetrics(t, bd, repo, home, "init", "--non-interactive", "--quiet"); errOut != "" {
@@ -469,6 +490,7 @@ func TestMetricsReadyGatedAliasEmitsSingleEvent(t *testing.T) {
 		t.Fatalf("temp repo: %v", err)
 	}
 	initGitRepoAt(t, repo)
+	writeUserMetricsDisabled(t, home, false)
 
 	// A store is needed so `bd ready --gated` reaches its discovery body.
 	if _, errOut := runBdForMetrics(t, bd, repo, home, "init", "--non-interactive", "--quiet"); errOut != "" {
@@ -504,6 +526,7 @@ func TestMetricsWispAliasEmitsSingleEvent(t *testing.T) {
 		t.Fatalf("temp repo: %v", err)
 	}
 	initGitRepoAt(t, repo)
+	writeUserMetricsDisabled(t, home, false)
 
 	// A store is needed so `bd mol wisp <proto>` reaches its RunE body.
 	if _, errOut := runBdForMetrics(t, bd, repo, home, "init", "--non-interactive", "--quiet"); errOut != "" {
@@ -554,6 +577,7 @@ func TestMetricsRootVersionFlagSuppressesFirstRunNotice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("temp repo: %v", err)
 	}
+	writeUserMetricsDisabled(t, control, false)
 	if _, errOut := runBdForMetrics(t, bd, controlRepo, control, "list"); !strings.Contains(errOut, noticeMarker) {
 		t.Fatalf("positive control: `bd list` on a fresh home should print the first-run notice; stderr:\n%s", errOut)
 	}
@@ -569,6 +593,7 @@ func TestMetricsRootVersionFlagSuppressesFirstRunNotice(t *testing.T) {
 			if err != nil {
 				t.Fatalf("temp repo: %v", err)
 			}
+			writeUserMetricsDisabled(t, home, false)
 			stdout, errOut := runBdForMetrics(t, bd, repo, home, flag)
 			if !strings.Contains(stdout, "bd version") {
 				t.Errorf("`bd %s` should print version to stdout, got stdout:\n%s\nstderr:\n%s", flag, stdout, errOut)
@@ -597,6 +622,7 @@ func TestMetricsOffEmitsNoEvent(t *testing.T) {
 		t.Fatalf("temp repo: %v", err)
 	}
 	initGitRepoAt(t, repo)
+	writeUserMetricsDisabled(t, home, false)
 
 	// Establish the metrics-enabled baseline and confirm a normal command emits.
 	runBdForMetrics(t, bd, repo, home, "init", "--non-interactive", "--quiet")

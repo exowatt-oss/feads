@@ -174,7 +174,7 @@ Try Beads in your own projects:
 
 ` + "```bash" + `
 # Install Beads
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+git clone https://github.com/exowatt-oss/feads.git && cd feads && go build -o ./bin/bd ./cmd/bd
 
 # Initialize in your repo
 bd init

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feads</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- Bundled faces (offline-safe, never a CDN — this dashboard runs on
+         localhost). Preload the two weights the first paint uses. -->
+    <link
+      rel="preload"
+      href="./fonts/nunito-sans-latin-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="./fonts/nunito-sans-latin-700-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-left">
+        <span class="brand" title="Feads — fresh work, on feed">
+          <svg
+            class="brand__mark"
+            viewBox="0 0 32 32"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <defs>
+              <linearGradient id="brand-g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#e8552a" />
+                <stop offset="1" stop-color="#c93222" />
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="7" fill="url(#brand-g)" />
+            <path
+              d="M10 14.5a6 6 0 0 1 12 0V24a1 1 0 0 1-1 1H11a1 1 0 0 1-1-1z"
+              fill="#fff"
+              opacity="0.95"
+            />
+            <path
+              d="M10 18h12M10 21.5h12"
+              stroke="url(#brand-g)"
+              stroke-width="1.2"
+            />
+            <rect
+              x="14.5"
+              y="21.5"
+              width="3"
+              height="3.5"
+              rx="0.7"
+              fill="#c93222"
+            />
+          </svg>
+          <h1 class="app-title">Feads</h1>
+        </span>
+        <!-- Where you are: Space, then board. Each selector inside is a
+             `.context-select`; put a `.header-context__sep` between them. -->
+        <div class="header-context">
+          <div id="workspace-picker" class="header-workspace"></div>
+        </div>
+        <nav id="top-nav" class="header-nav" aria-label="Primary"></nav>
+      </div>
+      <div class="header-actions">
+        <div
+          id="header-loading"
+          class="header-loading"
+          role="status"
+          aria-live="polite"
+          aria-label="Loading"
+          hidden
+        >
+          <span class="header-loading__spinner" aria-hidden="true"></span>
+          <span class="visually-hidden">Loading</span>
+        </div>
+        <!-- feads: what happened on the board while you were elsewhere. Left of
+             the identity chip because it only exists when that chip names an
+             agent — notifications are addressed to an actor. -->
+        <div id="notification-bell" class="header-notifications"></div>
+        <!-- feads: who this browser is acting as, and how to stop. -->
+        <div id="identity-chip" class="header-identity"></div>
+        <label class="theme-toggle" title="Toggle dark mode">
+          <span>Dark</span>
+          <input
+            id="theme-switch"
+            type="checkbox"
+            aria-label="Toggle dark mode"
+          />
+        </label>
+        <!-- The wrapper carries the button's title too: a disabled button takes
+             no pointer events, so the reason it is disabled is told on hover by
+             its wrapper. -->
+        <span class="new-issue-wrap" title="Create a new issue (Ctrl/Cmd+N)">
+          <button
+            id="new-issue-btn"
+            type="button"
+            class="btn-brand"
+            aria-haspopup="dialog"
+            title="Create a new issue (Ctrl/Cmd+N)"
+          >
+            New issue
+          </button>
+        </span>
+      </div>
+    </header>
+    <main id="app" class="app-shell" aria-live="polite"></main>
+    <script type="module" src="/main.bundle.js"></script>
+  </body>
+</html>

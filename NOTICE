@@ -1,0 +1,22 @@
+Copyright (c) 2026 Exowatt, Inc. (modifications)
+
+Feads is a fork of Beads: https://github.com/gastownhall/beads
+Inherited work is Copyright (c) 2025 Beads Contributors, under the MIT License.
+The upstream LICENSE is retained verbatim; neither project endorses the other.
+
+The optional UI includes code derived from beads-ui by Maximilian Antoni:
+https://github.com/mantoni/beads-ui — Copyright (c) 2025 Maximilian Antoni,
+MIT. The original notice is preserved in ui/LICENSE.
+
+Bundled Nunito Sans fonts: Copyright 2016 The Nunito Sans Project Authors
+(https://github.com/Fonthausen/NunitoSans), SIL Open Font License 1.1;
+see ui/app/fonts/nunitosans-OFL.txt.
+
+Bundled JetBrains Mono fonts: Copyright 2020 The JetBrains Mono Project Authors
+(https://github.com/JetBrains/JetBrainsMono), SIL Open Font License 1.1;
+see ui/app/fonts/jetbrainsmono-OFL.txt.
+
+Additional third-party notices: THIRD_PARTY_LICENSES. In particular,
+dolthub/fslock is LGPL-3.0 with a static/dynamic linking exception;
+kch42/buzhash is WTFPL. dolthub/eventkit is pinned to a version that
+includes its Apache-2.0 license.

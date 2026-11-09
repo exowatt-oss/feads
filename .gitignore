@@ -255,3 +255,9 @@ tmp/build/cli-docs/where.md
 tmp/build/cli-docs/worktree.md
 tmp/docs/CLI_REFERENCE.md
 *.gate.lock*
+
+# mkdocs build output (example-docs -> feads.docs.example.test)
+/site/
+
+/.venv/
+.pg-fixtures/

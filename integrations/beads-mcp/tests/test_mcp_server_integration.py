@@ -95,13 +95,21 @@ async def mcp_client(bd_executable, temp_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_quickstart_resource(mcp_client):
-    """Test beads://quickstart resource."""
+    """The quickstart is MCP-shaped: work items, live progress, id routing — no CLI."""
     result = await mcp_client.read_resource("beads://quickstart")
 
     assert result is not None
     content = result[0].text
     assert len(content) > 0
-    assert "beads" in content.lower() or "bd" in content.lower()
+    assert "parent-child:<epic-id>" in content
+    assert "Close-as-you-go" in content
+    assert "route by the id's prefix automatically" in content
+    # Work items end terminal; an unfinished epic hands off instead of closing.
+    assert "every work item you created is closed or cancelled" in content
+    assert "a current [handoff]" in content
+    # A hosted agent has no CLI and nothing local to set up.
+    assert ".beads" not in content
+    assert "BEADS_WORKING_DIR" not in content
 
 
 @pytest.mark.asyncio
@@ -406,6 +414,88 @@ async def test_add_dependency_tool(mcp_client):
 
 
 @pytest.mark.asyncio
+async def test_retyping_an_edge_is_possible_over_mcp_alone(mcp_client):
+    """#feads-qyo: the whole point of dep_remove.
+
+    `dep` refuses to retype an existing edge and tells you to run `bd dep remove`
+    first — which used to be a CLI-only verb, so an agent that filed a session epic
+    with a `blocks` edge where it wanted `parent-child` could not fix it without a
+    human at a shell. This walks the fix: wrong edge, remove, right edge.
+    """
+    import json
+
+    epic = json.loads(
+        (
+            await mcp_client.call_tool(
+                "create", {"title": "Epic", "priority": 1, "issue_type": "epic", "brief": False}
+            )
+        )
+        .content[0]
+        .text
+    )
+    child = json.loads(
+        (
+            await mcp_client.call_tool(
+                "create", {"title": "Child", "priority": 1, "issue_type": "task", "brief": False}
+            )
+        )
+        .content[0]
+        .text
+    )
+
+    # The wrong edge: bd's default, and what create(deps=[epic]) mints.
+    await mcp_client.call_tool("dep", {"issue_id": child["id"], "depends_on_id": epic["id"]})
+    shown = json.loads((await mcp_client.call_tool("show", {"issue_id": child["id"]})).content[0].text)
+    assert [d["dependency_type"] for d in shown["dependencies"]] == ["blocks"]
+
+    removed = await mcp_client.call_tool("dep_remove", {"issue_id": child["id"], "depends_on_id": epic["id"]})
+    assert "Removed dependency" in removed.content[0].text
+
+    await mcp_client.call_tool(
+        "dep",
+        {"issue_id": child["id"], "depends_on_id": epic["id"], "dep_type": "parent-child"},
+    )
+    shown = json.loads((await mcp_client.call_tool("show", {"issue_id": child["id"]})).content[0].text)
+    assert [d["dependency_type"] for d in shown["dependencies"]] == ["parent-child"]
+
+
+@pytest.mark.asyncio
+async def test_create_deps_takes_a_type_not_only_an_id(mcp_client):
+    """#feads-qyo(c): `deps=` was read as 'ids, always blocks'. It is not — bd's own
+    `type:id` spelling passes straight through, so a child can be filed under its epic
+    in one call. The tool description now says so; this pins the behaviour."""
+    import json
+
+    epic = json.loads(
+        (
+            await mcp_client.call_tool(
+                "create", {"title": "Epic with typed child", "issue_type": "epic", "brief": False}
+            )
+        )
+        .content[0]
+        .text
+    )
+    child = json.loads(
+        (
+            await mcp_client.call_tool(
+                "create",
+                {
+                    "title": "Typed child",
+                    "issue_type": "task",
+                    "deps": [f"parent-child:{epic['id']}"],
+                    "brief": False,
+                },
+            )
+        )
+        .content[0]
+        .text
+    )
+
+    shown = json.loads((await mcp_client.call_tool("show", {"issue_id": child["id"]})).content[0].text)
+    assert [d["dependency_type"] for d in shown["dependencies"]] == ["parent-child"]
+
+
+@pytest.mark.asyncio
 async def test_comment_comments_and_note_tools(mcp_client):
     """Test comment, comments, and note tools end to end."""
     import json
@@ -552,6 +642,50 @@ async def test_update_partial_fields(mcp_client):
 
 
 @pytest.mark.asyncio
+async def test_update_replaces_labels_end_to_end(mcp_client):
+    """The `labels` parameter, from the MCP tool through the bd backend and back.
+
+    Three cases in one board because they are the same contract seen from three sides:
+    a list replaces the set, `[]` empties it, and omitting it changes nothing. The last
+    one is the regression that matters — a field update quietly stripping a bead's labels
+    is invisible until somebody's board query stops matching.
+    """
+    import json
+
+    async def call(tool: str, **kwargs):
+        result = await mcp_client.call_tool(tool, {"brief": False, **kwargs})
+        return json.loads(result.content[0].text)
+
+    created = await call(
+        "create",
+        title="Labelled",
+        priority=2,
+        issue_type="task",
+        labels=["drop", "keep"],
+    )
+    issue_id = created["id"]
+    assert sorted(created["labels"]) == ["drop", "keep"]
+
+    replaced = await call("update", issue_id=issue_id, labels=["keep", "fresh"])
+    assert sorted(replaced["labels"]) == ["fresh", "keep"]
+
+    cleared = await call("update", issue_id=issue_id, labels=[])
+    assert cleared.get("labels", []) == []
+
+    await call("update", issue_id=issue_id, labels=["sticky"])
+    untouched = await call("update", issue_id=issue_id, priority=0)
+    assert untouched["labels"] == ["sticky"]
+    assert untouched["priority"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_tool_info_documents_labels_on_update(mcp_client):
+    """Discovery has to mention it, or an agent reading get_tool_info will not know it exists."""
+    info = await mcp_client.call_tool("get_tool_info", {"tool_name": "update"})
+    assert "labels" in info.data["parameters"]
+
+
+@pytest.mark.asyncio
 async def test_dependency_types(mcp_client):
     """Test different dependency types."""
     import json
@@ -647,6 +781,10 @@ async def test_context_init_action(bd_executable):
 
     Note: This test validates that context(action='init') can be called successfully via MCP.
     Uses a fresh temp directory without an existing database.
+
+    init names the directory itself rather than setting context first: `set` refuses a
+    workspace with no board in it (a context pointing at nothing routes writes to
+    whatever the environment resolves), so bootstrapping goes through init directly.
     """
     import os
     import shutil
@@ -666,16 +804,24 @@ async def test_context_init_action(bd_executable):
     temp_dir = tempfile.mkdtemp(prefix="beads_init_test_")
     try:
         async with Client(mcp) as client:
-            # First set context to the fresh directory
-            await client.call_tool("context", {"workspace_root": temp_dir})
+            # Setting context first is refused — there is no board here yet, which is
+            # precisely what init is for.
+            refused = await client.call_tool("context", {"workspace_root": temp_dir})
+            assert refused.content[0].text.startswith("Error:")
 
-            # Call context tool with init action
-            result = await client.call_tool("context", {"action": "init", "prefix": "test-init"})
+            # Call context tool with init action, naming the directory to create in
+            result = await client.call_tool(
+                "context", {"action": "init", "workspace_root": temp_dir, "prefix": "test-init"}
+            )
             output = result.content[0].text
 
             # Verify output contains success message
             assert "bd initialized successfully!" in output
             assert "test-init" in output
+
+            # And now that a board exists, context set binds it.
+            accepted = await client.call_tool("context", {"workspace_root": temp_dir})
+            assert accepted.content[0].text.startswith("Context set successfully")
     finally:
         tools._connection_pool.clear()
         shutil.rmtree(temp_dir, ignore_errors=True)

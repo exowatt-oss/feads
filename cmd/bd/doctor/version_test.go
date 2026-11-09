@@ -75,10 +75,10 @@ func TestUpgradeCommandForPath(t *testing.T) {
 		execPath string
 		expected string
 	}{
-		{"homebrew apple silicon", "/opt/homebrew/Cellar/beads/0.49.4/bin/bd", "brew upgrade beads"},
-		{"homebrew intel mac", "/usr/local/Cellar/beads/0.49.4/bin/bd", "brew upgrade beads"},
-		{"homebrew linux", "/home/linuxbrew/.linuxbrew/Cellar/beads/0.49.4/bin/bd", "brew upgrade beads"},
-		{"legacy tap formula", "/opt/homebrew/Cellar/bd/0.49.0/bin/bd", "brew upgrade beads"},
+		{"homebrew apple silicon", "/opt/homebrew/Cellar/beads/0.49.4/bin/bd", installScriptCommand},
+		{"homebrew intel mac", "/usr/local/Cellar/beads/0.49.4/bin/bd", installScriptCommand},
+		{"homebrew linux", "/home/linuxbrew/.linuxbrew/Cellar/beads/0.49.4/bin/bd", installScriptCommand},
+		{"legacy tap formula", "/opt/homebrew/Cellar/bd/0.49.0/bin/bd", installScriptCommand},
 		{"usr local bin symlink", "/usr/local/bin/bd", installScriptCommand},
 		{"go install", "/home/user/go/bin/bd", installScriptCommand},
 	}

@@ -641,6 +641,11 @@ func outputMCPContext(w io.Writer, stealthMode bool) error {
 	context := primeTruncationDirective + `# Beads Issue Tracker Active
 
 ` + redirectNotice
+	// The inbox rides ahead of the workflow rules: a [q] waiting on this
+	// actor is the most time-sensitive line in the whole prime output.
+	if inbox := primeInboxSection(); inbox != "" {
+		context += inbox
+	}
 	if memories != "" {
 		context += memories + "\n"
 	}
@@ -829,6 +834,11 @@ git status                  # Check changed files
 > Hooks auto-call this in Claude Code and Codex when a beads workspace is resolved
 
 ` + redirectNotice
+	// The inbox rides ahead of the workflow rules: a [q] waiting on this
+	// actor is the most time-sensitive line in the whole prime output.
+	if inbox := primeInboxSection(); inbox != "" {
+		context += inbox
+	}
 	if memories != "" {
 		context += memories + "\n"
 	}

@@ -1,0 +1,12 @@
+node_modules
+coverage
+dist
+.beads
+CHANGES.md
+app/main.bundle.js
+app/main.bundle.js.map
+dev-docs
+app/people.bundle.js
+app/people.bundle.js.map
+app/people.bundle.css
+app/people.bundle.css.map

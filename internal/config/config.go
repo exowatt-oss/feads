@@ -197,7 +197,7 @@ func Initialize() error {
 	// Sync configuration defaults (bd-4u8)
 	v.SetDefault("sync.require_confirmation_on_mass_delete", false)
 
-	v.SetDefault("metrics.disabled", false)
+	v.SetDefault("metrics.disabled", true)
 	v.SetDefault("metrics.endpoint", "https://gastownhall-eventsapi.com/mp/collect")
 
 	// Federation configuration (optional Dolt remote)

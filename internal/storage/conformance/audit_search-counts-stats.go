@@ -502,8 +502,9 @@ func testAuditStaleStatusOverride(t *testing.T, f Factory) {
 	}
 }
 
-// Epics with ZERO children are silently skipped; epics WITH children are returned
-// with Total/Closed counts and EligibleForClose = (Total>0 && Total==Closed).
+// Epics with ZERO children are returned at 0/0 and are never EligibleForClose;
+// epics WITH children carry Total/Closed counts and
+// EligibleForClose = (Total>0 && Total==Closed).
 func testAuditEpicsEligiblePartial(t *testing.T, f Factory) {
 	s := f(t)
 	c := ctx()
@@ -542,8 +543,12 @@ func testAuditEpicsEligiblePartial(t *testing.T, f Factory) {
 		t.Errorf("ee-2 = {Total:%d Closed:%d Eligible:%v}, want {1 1 true}", e2.TotalChildren, e2.ClosedChildren, e2.EligibleForClose)
 	}
 
-	if _, present := byID["ee-3"]; present {
-		t.Error("ee-3 (zero children) must be ABSENT (silent skip)")
+	e3 := byID["ee-3"]
+	if e3 == nil {
+		t.Fatal("ee-3 missing (childless epics must be returned at 0/0)")
+	}
+	if e3.TotalChildren != 0 || e3.ClosedChildren != 0 || e3.EligibleForClose {
+		t.Errorf("ee-3 = {Total:%d Closed:%d Eligible:%v}, want {0 0 false}", e3.TotalChildren, e3.ClosedChildren, e3.EligibleForClose)
 	}
 }
 

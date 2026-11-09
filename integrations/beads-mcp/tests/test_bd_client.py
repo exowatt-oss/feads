@@ -16,6 +16,7 @@ from beads_mcp.models import (
     ListCommentsParams,
     ListIssuesParams,
     ReadyWorkParams,
+    RemoveDependencyParams,
     ReopenIssueParams,
     ShowIssueParams,
     UpdateIssueParams,
@@ -381,6 +382,36 @@ async def test_update(bd_client, mock_process):
 
 
 @pytest.mark.asyncio
+async def test_update_metadata_merges_and_unsets_keys(bd_client, mock_process):
+    issue_data = {
+        "id": "bd-1",
+        "title": "Updated title",
+        "status": "open",
+        "priority": 1,
+        "issue_type": "task",
+        "metadata": {"keep": "yes", "effort": {"pre_ai_hours": 2}},
+        "created_at": "2025-01-25T00:00:00Z",
+        "updated_at": "2025-01-25T00:00:00Z",
+    }
+    mock_process.communicate = AsyncMock(
+        side_effect=[
+            (json.dumps(issue_data).encode(), b""),
+            (json.dumps(issue_data).encode(), b""),
+        ]
+    )
+    metadata_patch = {"effort": {"pre_ai_hours": 4}, "obsolete": None}
+
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as spawn:
+        issue = await bd_client.update(UpdateIssueParams(issue_id="bd-1", metadata=metadata_patch))
+
+    assert issue.id == "bd-1"
+    calls = [list(call.args) for call in spawn.call_args_list]
+    assert "--metadata" in calls[0]
+    assert json.loads(calls[0][calls[0].index("--metadata") + 1]) == {"effort": {"pre_ai_hours": 4}}
+    assert calls[1][calls[1].index("--unset-metadata") + 1] == "obsolete"
+
+
+@pytest.mark.asyncio
 async def test_update_with_optional_fields(bd_client, mock_process):
     """Test update method with all optional fields."""
     issue_data = {
@@ -411,6 +442,110 @@ async def test_update_with_optional_fields(bd_client, mock_process):
 
     assert issue.id == "bd-1"
     assert issue.title == "Updated title"
+
+
+def _flag_values(argv: list[str], flag: str) -> list[str]:
+    """Every value passed for a repeatable flag, in the order it was passed."""
+    return [argv[i + 1] for i, token in enumerate(argv) if token == flag]
+
+
+def _label_spawn(calls: list[list[str]], before: dict, after: dict):
+    """A create_subprocess_exec stand-in that answers `show` and `update` differently.
+
+    A label replacement is two spawns (read the current set, then apply the diff), so a
+    single canned reply cannot tell the two apart.
+    """
+
+    def spawn(*cmd, **_kwargs):
+        calls.append(list(cmd))
+        process = MagicMock()
+        process.returncode = 0
+        payload = before if cmd[1] == "show" else after
+        process.communicate = AsyncMock(return_value=(json.dumps(payload).encode(), b""))
+        return process
+
+    return spawn
+
+
+def _labelled_issue(*labels: str) -> dict:
+    return {
+        "id": "bd-1",
+        "title": "Labelled",
+        "status": "open",
+        "priority": 1,
+        "issue_type": "task",
+        "labels": list(labels),
+        "created_at": "2025-01-25T00:00:00Z",
+        "updated_at": "2025-01-25T00:00:00Z",
+    }
+
+
+@pytest.mark.asyncio
+async def test_update_replaces_labels_by_diffing_the_current_set(bd_client):
+    """bd has no usable "set exactly these" flag, so replacement is add/remove of a diff."""
+    calls: list[list[str]] = []
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=_label_spawn(calls, _labelled_issue("drop", "keep"), _labelled_issue("fresh", "keep")),
+    ):
+        issue = await bd_client.update(UpdateIssueParams(issue_id="bd-1", labels=["keep", "fresh"]))
+
+    show_cmd, update_cmd = calls
+    assert show_cmd[1:3] == ["show", "bd-1"]
+    assert update_cmd[1:3] == ["update", "bd-1"]
+    assert _flag_values(update_cmd, "--add-label") == ["fresh"]
+    assert _flag_values(update_cmd, "--remove-label") == ["drop"]
+    assert "keep" not in _flag_values(update_cmd, "--add-label"), "a label already there is not re-added"
+    assert issue.labels == ["fresh", "keep"]
+
+
+@pytest.mark.asyncio
+async def test_update_with_an_empty_label_list_removes_every_label(bd_client):
+    """The clear-all case, which is exactly what ``--set-labels`` cannot express."""
+    calls: list[list[str]] = []
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=_label_spawn(calls, _labelled_issue("a", "b"), _labelled_issue()),
+    ):
+        issue = await bd_client.update(UpdateIssueParams(issue_id="bd-1", labels=[]))
+
+    update_cmd = calls[1]
+    assert _flag_values(update_cmd, "--remove-label") == ["a", "b"]
+    assert _flag_values(update_cmd, "--add-label") == []
+    assert issue.labels == []
+
+
+@pytest.mark.asyncio
+async def test_update_asking_for_the_labels_already_present_passes_no_label_flags(bd_client):
+    calls: list[list[str]] = []
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=_label_spawn(calls, _labelled_issue("a"), _labelled_issue("a")),
+    ):
+        await bd_client.update(UpdateIssueParams(issue_id="bd-1", labels=["a"]))
+
+    update_cmd = calls[1]
+    assert "--add-label" not in update_cmd
+    assert "--remove-label" not in update_cmd
+
+
+@pytest.mark.asyncio
+async def test_update_without_labels_never_reads_them(bd_client):
+    """A label-less update must stay one spawn — and must not touch labels at all."""
+    calls: list[list[str]] = []
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=_label_spawn(calls, _labelled_issue("a"), _labelled_issue("a")),
+    ):
+        await bd_client.update(UpdateIssueParams(issue_id="bd-1", priority=0))
+
+    assert [cmd[1] for cmd in calls] == ["update"]
+    assert "--add-label" not in calls[0]
+    assert "--remove-label" not in calls[0]
 
 
 @pytest.mark.asyncio
@@ -465,7 +600,7 @@ async def test_claim_invalid_response(bd_client, mock_process):
 
 @pytest.mark.asyncio
 async def test_close(bd_client, mock_process):
-    """Test close method."""
+    """Test close method preserves the normal CLI invocation."""
     issues_data = [
         {
             "id": "bd-1",
@@ -480,12 +615,39 @@ async def test_close(bd_client, mock_process):
     ]
     mock_process.communicate = AsyncMock(return_value=(json.dumps(issues_data).encode(), b""))
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
         params = CloseIssueParams(issue_id="bd-1", reason="Completed")
         issues = await bd_client.close(params)
 
     assert len(issues) == 1
     assert issues[0].status == "closed"
+    assert "--force" not in mock_exec.call_args.args
+
+
+@pytest.mark.asyncio
+async def test_close_force_passes_native_flag(bd_client, mock_process):
+    """Force close delegates the assignee override to bd rather than reimplementing it."""
+    issues_data = [
+        {
+            "id": "bd-1",
+            "title": "Closed issue",
+            "status": "closed",
+            "priority": 1,
+            "issue_type": "bug",
+            "created_at": "2025-01-25T00:00:00Z",
+            "updated_at": "2025-01-25T00:00:00Z",
+            "closed_at": "2025-01-25T01:00:00Z",
+        }
+    ]
+    mock_process.communicate = AsyncMock(return_value=(json.dumps(issues_data).encode(), b""))
+
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+        issues = await bd_client.close(CloseIssueParams(issue_id="bd-1", force=True))
+
+    assert issues[0].status == "closed"
+    call_args = mock_exec.call_args.args
+    assert "--force" in call_args
+    assert "--reason" in call_args
 
 
 @pytest.mark.asyncio
@@ -638,6 +800,34 @@ async def test_add_dependency_not_found(bd_client):
     ):
         params = AddDependencyParams(issue_id="bd-2", depends_on_id="bd-1", dep_type="blocks")
         await bd_client.add_dependency(params)
+
+
+@pytest.mark.asyncio
+async def test_remove_dependency(bd_client, mock_process):
+    """#feads-qyo: `bd dep remove <issue> <depends-on>`, no --type. The pair is the
+    edge's identity as far as bd is concerned, and requiring the caller to name the
+    type it is trying to get rid of would rebuild the trap."""
+    mock_process.communicate = AsyncMock(return_value=(b"Dependency removed\n", b""))
+
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as spawn:
+        await bd_client.remove_dependency(RemoveDependencyParams(issue_id="bd-2", depends_on_id="bd-1"))
+
+    argv = spawn.call_args[0]
+    assert argv[1:4] == ("dep", "remove", "bd-2")
+    assert argv[4] == "bd-1"
+    assert "--type" not in argv
+
+
+@pytest.mark.asyncio
+async def test_remove_dependency_failure(bd_client, mock_process):
+    mock_process.returncode = 1
+    mock_process.communicate = AsyncMock(return_value=(b"", b"error: no such dependency"))
+
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=mock_process),
+        pytest.raises(BdCommandError, match="bd dep failed"),
+    ):
+        await bd_client.remove_dependency(RemoveDependencyParams(issue_id="bd-2", depends_on_id="bd-1"))
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,722 @@
+{
+  "_comment": [
+    "Conformance fixture for artifact refs — the contract between the two implementations.",
+    "",
+    "Node: boards/artifacts.mjs, asserted by boards/artifacts.test.mjs.",
+    "Python: integrations/beads-mcp/src/beads_mcp/artifacts.py, asserted by",
+    "integrations/beads-mcp/tests/test_artifact_parity.py.",
+    "",
+    "A ref is a join key: an agent finds who else is touching a file by matching refs.",
+    "Two canonicalizers that disagree therefore do not produce a wrong answer, they",
+    "produce 'nobody else is touching this' — silently. So neither implementation owns",
+    "the grammar; this file does, and both suites are readers of it. Add a case here",
+    "first, then satisfy it on both sides in the same commit.",
+    "",
+    "Cases with \"throws\": true must raise; \"message_contains\" is asserted",
+    "case-insensitively against the message or its hint, so wording may differ between",
+    "the two but the diagnosis may not."
+  ],
+
+  "parse": [
+    {
+      "why": "the plain repo form",
+      "input": "example-org/feads",
+      "expect": { "kind": "repo", "repo": "example-org/feads", "ref": "example-org/feads" }
+    },
+    {
+      "why": "repo case folds, path case is preserved — Linux paths are case-sensitive",
+      "input": "example-org/Feads:ui/server/Bd.js",
+      "expect": {
+        "kind": "file",
+        "repo": "example-org/feads",
+        "path": "ui/server/Bd.js",
+        "ref": "example-org/feads:ui/server/Bd.js"
+      }
+    },
+    {
+      "why": "a trailing slash means the subtree, and is kept",
+      "input": "example-org/feads:ui/server/",
+      "expect": {
+        "kind": "dir",
+        "repo": "example-org/feads",
+        "path": "ui/server/",
+        "ref": "example-org/feads:ui/server/"
+      }
+    },
+    {
+      "why": "pull request",
+      "input": "example-org/feads#4141",
+      "expect": { "kind": "pr", "repo": "example-org/feads", "pr": 4141, "ref": "example-org/feads#4141" }
+    },
+    {
+      "why": "a bare repo name is legal — still identical across checkouts",
+      "input": "feads:ui/server/bd.js",
+      "expect": { "kind": "file", "repo": "feads", "path": "ui/server/bd.js", "ref": "feads:ui/server/bd.js" }
+    },
+    {
+      "why": ".git is stripped so a remote-derived repo and a typed one agree",
+      "input": "example-org/feads.git:go.mod",
+      "expect": { "kind": "file", "repo": "example-org/feads", "path": "go.mod", "ref": "example-org/feads:go.mod" }
+    },
+    {
+      "why": "leading ./ and doubled slashes are noise",
+      "input": "example-org/feads:./ui//server/bd.js",
+      "expect": { "kind": "file", "repo": "example-org/feads", "path": "ui/server/bd.js", "ref": "example-org/feads:ui/server/bd.js" }
+    },
+    {
+      "why": "a leading slash is a repo-relative path written absolutely, not an escape",
+      "input": "example-org/feads:/ui/server/bd.js",
+      "expect": { "kind": "file", "repo": "example-org/feads", "path": "ui/server/bd.js", "ref": "example-org/feads:ui/server/bd.js" }
+    },
+    {
+      "why": ".. resolves inside the repo",
+      "input": "example-org/feads:ui/server/../app/main.js",
+      "expect": { "kind": "file", "repo": "example-org/feads", "path": "ui/app/main.js", "ref": "example-org/feads:ui/app/main.js" }
+    },
+    {
+      "why": "backslashes come from Windows agents and mean the same file",
+      "input": "example-org/feads:ui\\server\\bd.js",
+      "expect": { "kind": "file", "repo": "example-org/feads", "path": "ui/server/bd.js", "ref": "example-org/feads:ui/server/bd.js" }
+    },
+    {
+      "why": "surrounding whitespace is not part of a ref",
+      "input": "  example-org/feads:go.mod  ",
+      "expect": { "kind": "file", "repo": "example-org/feads", "path": "go.mod", "ref": "example-org/feads:go.mod" }
+    },
+    {
+      "why": ".. may not climb out of the repo — the ref would name nothing shareable",
+      "input": "example-org/feads:../secrets.env",
+      "throws": true,
+      "message_contains": "escapes"
+    },
+    {
+      "why": "the repo itself has its own kind; an empty path must not be a second spelling",
+      "input": "example-org/feads:",
+      "throws": true,
+      "message_contains": "empty path"
+    },
+    {
+      "why": "three segments before the colon cannot be a repo",
+      "input": "github/example-org/feads:go.mod",
+      "throws": true,
+      "message_contains": "too many segments"
+    },
+    {
+      "why": "PR numbers are positive integers",
+      "input": "example-org/feads#0",
+      "throws": true,
+      "message_contains": "pull request"
+    },
+    {
+      "why": "PR numbers are numbers",
+      "input": "example-org/feads#head",
+      "throws": true,
+      "message_contains": "pull request"
+    },
+    {
+      "why": "empty is not a ref",
+      "input": "   ",
+      "throws": true,
+      "message_contains": "empty"
+    }
+  ],
+
+  "format": [
+    {
+      "why": "repo round-trips",
+      "input": { "kind": "repo", "repo": "example-org/feads" },
+      "expect": "example-org/feads"
+    },
+    {
+      "why": "file round-trips",
+      "input": { "kind": "file", "repo": "example-org/feads", "path": "ui/server/bd.js" },
+      "expect": "example-org/feads:ui/server/bd.js"
+    },
+    {
+      "why": "kind wins over the path's own trailing slash — the caller said dir",
+      "input": { "kind": "dir", "repo": "example-org/feads", "path": "ui/server" },
+      "expect": "example-org/feads:ui/server/"
+    },
+    {
+      "why": "and a file keeps no trailing slash even if one was passed",
+      "input": { "kind": "file", "repo": "example-org/feads", "path": "ui/server/" },
+      "expect": "example-org/feads:ui/server"
+    },
+    {
+      "why": "pr round-trips",
+      "input": { "kind": "pr", "repo": "example-org/feads", "pr": 12 },
+      "expect": "example-org/feads#12"
+    },
+    {
+      "why": "an unknown kind is a programming error, not a ref",
+      "input": { "kind": "branch", "repo": "example-org/feads" },
+      "throws": true,
+      "message_contains": "kind"
+    }
+  ],
+
+  "expand_repo": [
+    {
+      "why": "a bare name that matches exactly one registered repo gains its owner",
+      "input": { "repo": "feads", "known_repos": ["example-org/feads", "example-lab/sample-controller"] },
+      "expect": { "repo": "example-org/feads", "matched": true }
+    },
+    {
+      "why": "an owner-qualified repo is left alone, and reports whether it is registered",
+      "input": { "repo": "example-org/feads", "known_repos": ["example-org/feads"] },
+      "expect": { "repo": "example-org/feads", "matched": true }
+    },
+    {
+      "why": "unknown repos are usable — the registry is a hint, not a gate",
+      "input": { "repo": "Some-Org/newthing", "known_repos": ["example-org/feads"] },
+      "expect": { "repo": "some-org/newthing", "matched": false }
+    },
+    {
+      "why": "an unknown bare name stays bare rather than becoming a wrong owner",
+      "input": { "repo": "newthing", "known_repos": ["example-org/feads"] },
+      "expect": { "repo": "newthing", "matched": false }
+    },
+    {
+      "why": "two owners for one name is a coin flip; refuse and say both",
+      "input": { "repo": "feads", "known_repos": ["example-org/feads", "Someone-Else/feads"] },
+      "throws": true,
+      "message_contains": "ambiguous"
+    }
+  ],
+
+  "resolve": [
+    {
+      "why": "the colon form needs no evidence, only expansion",
+      "input": { "input": "feads:ui/server/bd.js", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "file", "ref": "example-org/feads:ui/server/bd.js" }
+    },
+    {
+      "why": "rule 1 — the whole string is a registered repo",
+      "input": { "input": "feads", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "repo", "ref": "example-org/feads" }
+    },
+    {
+      "why": "rule 2 — the first two segments are a registered repo",
+      "input": { "input": "example-org/feads/ui/server/bd.js", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "file", "ref": "example-org/feads:ui/server/bd.js" }
+    },
+    {
+      "why": "rule 3 — reponame/path, the form agents actually type",
+      "input": { "input": "feads/ui/server/bd.js", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "file", "ref": "example-org/feads:ui/server/bd.js" }
+    },
+    {
+      "why": "rule 3 keeps the subtree meaning of a trailing slash",
+      "input": { "input": "feads/ui/server/", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "dir", "ref": "example-org/feads:ui/server/" }
+    },
+    {
+      "why": "rule 4 — the repo the caller is standing in, when the registry is silent",
+      "input": { "input": "feads/ui/server/bd.js", "known_repos": [], "current_repo": "example-org/feads" },
+      "expect": { "kind": "file", "ref": "example-org/feads:ui/server/bd.js" }
+    },
+    {
+      "why": "rule 2 beats rule 3: the longer registered match is the better evidence",
+      "input": {
+        "input": "example-lab/sample-controller/dispatch/loop.py",
+        "known_repos": ["example-lab/sample-controller", "example-org/example-lab"]
+      },
+      "expect": { "kind": "file", "ref": "example-lab/sample-controller:dispatch/loop.py" }
+    },
+    {
+      "why": "rule 3 outranks rule 5 — a top-level file is where the two readings collide",
+      "input": { "input": "feads/go.mod", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "file", "ref": "example-org/feads:go.mod" }
+    },
+    {
+      "why": "rule 5 — two unknown segments read as owner/repo, the GitHub convention",
+      "input": { "input": "Some-Org/newthing", "known_repos": [] },
+      "expect": { "kind": "repo", "ref": "some-org/newthing" }
+    },
+    {
+      "why": "rule 5 still applies when only the second segment resembles a repo",
+      "input": { "input": "Some-Org/feads", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "repo", "ref": "some-org/feads" }
+    },
+    {
+      "why": "rule 6 — no evidence for where the repo ends; guessing would hide a collision",
+      "input": { "input": "mystery/deep/path/file.py", "known_repos": ["example-org/feads"] },
+      "throws": true,
+      "message_contains": "colon"
+    },
+    {
+      "why": "an ambiguous bare name is not evidence either, even with three segments",
+      "input": {
+        "input": "feads/ui/server/bd.js",
+        "known_repos": ["example-org/feads", "Someone-Else/feads"]
+      },
+      "throws": true,
+      "message_contains": "colon"
+    },
+    {
+      "why": "a checkout path is refused with the reason, not silently stored",
+      "input": { "input": "/Users/ana/src/feads/ui/server/bd.js", "known_repos": ["example-org/feads"] },
+      "throws": true,
+      "message_contains": "machine"
+    },
+    {
+      "why": "a relative checkout path likewise",
+      "input": { "input": "./ui/server/bd.js", "known_repos": [] },
+      "throws": true,
+      "message_contains": "machine"
+    },
+    {
+      "why": "a PR ref expands its bare repo too",
+      "input": { "input": "feads#4141", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "pr", "ref": "example-org/feads#4141" }
+    },
+    {
+      "why": "the board being written to breaks a tie the union of all repos cannot",
+      "input": {
+        "input": "feads:go.mod",
+        "known_repos": ["example-org/feads", "Someone-Else/feads"],
+        "preferred_repos": ["example-org/feads"]
+      },
+      "expect": { "kind": "file", "ref": "example-org/feads:go.mod" }
+    },
+    {
+      "why": "and when the board says nothing, the union still answers",
+      "input": {
+        "input": "feads:go.mod",
+        "known_repos": ["example-org/feads"],
+        "preferred_repos": ["example-lab/sample-controller"]
+      },
+      "expect": { "kind": "file", "ref": "example-org/feads:go.mod" }
+    },
+    {
+      "why": "a repo on no board is still usable — the registry is a hint, not a gate",
+      "input": { "input": "Some-Org/newthing:src/main.rs", "known_repos": ["example-org/feads"] },
+      "expect": { "kind": "file", "ref": "some-org/newthing:src/main.rs" }
+    }
+  ],
+
+  "remote_url": [
+    { "why": "scp form", "input": "git@github.com:example-org/feads.git", "expect": "example-org/feads" },
+    { "why": "https form", "input": "https://github.com/example-org/feads.git", "expect": "example-org/feads" },
+    { "why": "https without .git", "input": "https://github.com/example-org/feads", "expect": "example-org/feads" },
+    {
+      "why": "https with a token in the URL — credentials are not part of the repo",
+      "input": "https://x-access-token:ghs_secret@github.com/example-org/feads.git",
+      "expect": "example-org/feads"
+    },
+    { "why": "ssh:// form with a port", "input": "ssh://git@github.com:22/example-org/feads.git", "expect": "example-org/feads" },
+    { "why": "git protocol", "input": "git://github.com/example-org/feads.git", "expect": "example-org/feads" },
+    {
+      "why": "nested groups keep the last two segments, which is what owner/name means",
+      "input": "https://gitlab.com/example/lab/sample-controller.git",
+      "expect": "lab/sample-controller"
+    },
+    { "why": "trailing slash", "input": "https://github.com/example-org/feads/", "expect": "example-org/feads" },
+    { "why": "a local path is not a remote we can name", "input": "/srv/git/mirrors/feads.git", "expect": null },
+    { "why": "no owner", "input": "https://github.com/feads.git", "expect": null },
+    { "why": "empty", "input": "", "expect": null }
+  ],
+
+  "local_path": [
+    {
+      "why": "the ordinary case: a file inside a checkout with a remote",
+      "input": {
+        "path": "/Users/ana/src/feads/ui/server/bd.js",
+        "toplevel": "/Users/ana/src/feads",
+        "remote": "git@github.com:example-org/feads.git"
+      },
+      "expect": "example-org/feads:ui/server/bd.js"
+    },
+    {
+      "why": "a different machine, the same file, the same ref — the point of all this",
+      "input": {
+        "path": "/home/bo/work/checkouts/feads/ui/server/bd.js",
+        "toplevel": "/home/bo/work/checkouts/feads",
+        "remote": "https://github.com/example-org/feads"
+      },
+      "expect": "example-org/feads:ui/server/bd.js"
+    },
+    {
+      "why": "a directory keeps its subtree meaning",
+      "input": {
+        "path": "/Users/ana/src/feads/ui/server",
+        "toplevel": "/Users/ana/src/feads",
+        "remote": "git@github.com:example-org/feads.git",
+        "is_dir": true
+      },
+      "expect": "example-org/feads:ui/server/"
+    },
+    {
+      "why": "the toplevel itself is the repo",
+      "input": {
+        "path": "/Users/ana/src/feads",
+        "toplevel": "/Users/ana/src/feads",
+        "remote": "git@github.com:example-org/feads.git"
+      },
+      "expect": "example-org/feads"
+    },
+    {
+      "why": "no remote falls back to the checkout's name, not to its path",
+      "input": {
+        "path": "/Users/ana/scratch/prototype/main.py",
+        "toplevel": "/Users/ana/scratch/prototype",
+        "remote": ""
+      },
+      "expect": "prototype:main.py"
+    },
+    {
+      "why": "an explicit hint beats the directory name",
+      "input": {
+        "path": "/Users/ana/wt/better-tickets/go.mod",
+        "toplevel": "/Users/ana/wt/better-tickets",
+        "remote": "",
+        "repo_hint": "example-org/feads"
+      },
+      "expect": "example-org/feads:go.mod"
+    },
+    {
+      "why": "a path outside the checkout has no repo-relative name",
+      "input": {
+        "path": "/etc/hosts",
+        "toplevel": "/Users/ana/src/feads",
+        "remote": "git@github.com:example-org/feads.git"
+      },
+      "throws": true,
+      "message_contains": "outside"
+    },
+    {
+      "why": "a sibling directory that merely shares a prefix is still outside",
+      "input": {
+        "path": "/Users/ana/src/feads-ui/app.js",
+        "toplevel": "/Users/ana/src/feads",
+        "remote": "git@github.com:example-org/feads.git"
+      },
+      "throws": true,
+      "message_contains": "outside"
+    },
+    {
+      "why": "no git repository at all",
+      "input": { "path": "/tmp/loose/file.txt", "toplevel": "" },
+      "throws": true,
+      "message_contains": "git"
+    }
+  ],
+
+  "overlap": [
+    {
+      "why": "the same file",
+      "query": "example-org/feads:ui/server/bd.js",
+      "attached": "example-org/feads:ui/server/bd.js",
+      "expect": "exact"
+    },
+    {
+      "why": "somebody claimed the directory your file is in",
+      "query": "example-org/feads:ui/server/bd.js",
+      "attached": "example-org/feads:ui/server/",
+      "expect": "inside"
+    },
+    {
+      "why": "you asked about the directory; they are in one of its files",
+      "query": "example-org/feads:ui/server/",
+      "attached": "example-org/feads:ui/server/bd.js",
+      "expect": "covers"
+    },
+    {
+      "why": "a nested directory is inside the outer one",
+      "query": "example-org/feads:ui/server/routes/",
+      "attached": "example-org/feads:ui/",
+      "expect": "inside"
+    },
+    {
+      "why": "somebody claimed the whole repo",
+      "query": "example-org/feads:ui/server/bd.js",
+      "attached": "example-org/feads",
+      "expect": "inside"
+    },
+    {
+      "why": "a repo query sweeps everything in it, including PRs",
+      "query": "example-org/feads",
+      "attached": "example-org/feads#4141",
+      "expect": "covers"
+    },
+    {
+      "why": "repo to repo",
+      "query": "example-org/feads",
+      "attached": "example-org/feads",
+      "expect": "exact"
+    },
+    {
+      "why": "the same name as a file and as a subtree — the subtree is the broader claim",
+      "query": "example-org/feads:ui/server",
+      "attached": "example-org/feads:ui/server/",
+      "expect": "inside"
+    },
+    {
+      "why": "and the other way round",
+      "query": "example-org/feads:ui/server/",
+      "attached": "example-org/feads:ui/server",
+      "expect": "covers"
+    },
+    {
+      "why": "sibling files do not overlap",
+      "query": "example-org/feads:ui/server/bd.js",
+      "attached": "example-org/feads:ui/server/ws.js",
+      "expect": null
+    },
+    {
+      "why": "a shared prefix is not containment — the trap a naive startsWith falls into",
+      "query": "example-org/feads:ui/serverx.js",
+      "attached": "example-org/feads:ui/server/",
+      "expect": null
+    },
+    {
+      "why": "and in the covering direction too",
+      "query": "example-org/feads:ui/server/",
+      "attached": "example-org/feads:ui/serverx.js",
+      "expect": null
+    },
+    {
+      "why": "different repos never overlap, however similar the path",
+      "query": "example-org/feads:ui/server/bd.js",
+      "attached": "someone-else/feads:ui/server/bd.js",
+      "expect": null
+    },
+    {
+      "why": "a bare repo name is a different repo than an owner-qualified one; expansion happens before this",
+      "query": "feads:ui/server/bd.js",
+      "attached": "example-org/feads:ui/server/bd.js",
+      "expect": null
+    },
+    {
+      "why": "case folding means one key for one repo",
+      "query": "example-org/feads:ui/server/bd.js",
+      "attached": "example-org/FEADS:ui/server/bd.js",
+      "expect": "exact"
+    },
+    {
+      "why": "paths do not case-fold — two files on Linux",
+      "query": "example-org/feads:ui/server/BD.js",
+      "attached": "example-org/feads:ui/server/bd.js",
+      "expect": null
+    },
+    {
+      "why": "the same PR",
+      "query": "example-org/feads#4141",
+      "attached": "example-org/feads#4141",
+      "expect": "exact"
+    },
+    {
+      "why": "different PRs",
+      "query": "example-org/feads#4141",
+      "attached": "example-org/feads#4142",
+      "expect": null
+    },
+    {
+      "why": "a PR is a review surface, not a location — it does not conflict with a file",
+      "query": "example-org/feads:ui/server/bd.js",
+      "attached": "example-org/feads#4141",
+      "expect": null
+    },
+    {
+      "why": "a PR sits inside its repo",
+      "query": "example-org/feads#4141",
+      "attached": "example-org/feads",
+      "expect": "inside"
+    }
+  ],
+
+  "metadata": [
+    {
+      "why": "artifact keys decode; other metadata is left alone",
+      "input": {
+        "team": "platform",
+        "has_artifacts": true,
+        "artifact:example-org/feads:ui/server/bd.js": {
+          "kind": "file",
+          "repo": "example-org/feads",
+          "path": "ui/server/bd.js",
+          "intent": "editing",
+          "actor": "Laptop Claude",
+          "at": "2026-07-28T20:38:20Z",
+          "note": "rewiring the spawn choke point"
+        }
+      },
+      "expect": [
+        {
+          "ref": "example-org/feads:ui/server/bd.js",
+          "kind": "file",
+          "repo": "example-org/feads",
+          "path": "ui/server/bd.js",
+          "intent": "editing",
+          "actor": "Laptop Claude",
+          "at": "2026-07-28T20:38:20Z",
+          "note": "rewiring the spawn choke point"
+        }
+      ]
+    },
+    {
+      "why": "results are sorted by ref, so two agents reading one bead see one order",
+      "input": {
+        "artifact:example-org/feads:ui/server/ws.js": { "kind": "file", "intent": "reading" },
+        "artifact:example-org/feads:go.mod": { "kind": "file", "intent": "editing" }
+      },
+      "expect": [
+        { "ref": "example-org/feads:go.mod", "kind": "file", "intent": "editing" },
+        { "ref": "example-org/feads:ui/server/ws.js", "kind": "file", "intent": "reading" }
+      ]
+    },
+    {
+      "why": "ordering is by code point, not locale: localeCompare reorders # against : and the two implementations would disagree",
+      "input": {
+        "artifact:example-org/feads:ui/server/bd.js": { "intent": "editing" },
+        "artifact:example-org/feads#4141": { "intent": "reading" },
+        "artifact:example-org/feads": { "intent": "planned" }
+      },
+      "expect": [
+        { "ref": "example-org/feads" },
+        { "ref": "example-org/feads#4141" },
+        { "ref": "example-org/feads:ui/server/bd.js" }
+      ]
+    },
+    {
+      "why": "the key is authoritative for identity — a wrong value cannot move an artifact",
+      "input": {
+        "artifact:example-org/feads:go.mod": { "kind": "repo", "repo": "someone-else/other", "path": "elsewhere" }
+      },
+      "expect": [
+        { "ref": "example-org/feads:go.mod", "kind": "file", "repo": "example-org/feads", "path": "go.mod", "intent": "editing" }
+      ]
+    },
+    {
+      "why": "an unparseable artifact key is skipped, not fatal — metadata is an open namespace",
+      "input": {
+        "artifact:": { "kind": "file" },
+        "artifact:not a ref#x": { "kind": "file" },
+        "artifact:example-org/feads": { "kind": "repo", "intent": "reading" }
+      },
+      "expect": [{ "ref": "example-org/feads", "kind": "repo", "repo": "example-org/feads", "intent": "reading" }]
+    },
+    {
+      "why": "a missing or bogus intent reads as editing — the cautious assumption",
+      "input": {
+        "artifact:example-org/feads:go.mod": {},
+        "artifact:example-org/feads:go.sum": { "intent": "vibing" }
+      },
+      "expect": [
+        { "ref": "example-org/feads:go.mod", "intent": "editing" },
+        { "ref": "example-org/feads:go.sum", "intent": "editing" }
+      ]
+    },
+    {
+      "why": "a non-object value is still an artifact — the key carries the claim",
+      "input": { "artifact:example-org/feads:go.mod": true },
+      "expect": [{ "ref": "example-org/feads:go.mod", "kind": "file", "intent": "editing" }]
+    },
+    {
+      "why": "a null value is a released artifact — that is how detach works",
+      "input": {
+        "has_artifacts": true,
+        "artifact:example-org/feads:go.mod": null,
+        "artifact:example-org/feads:go.sum": { "intent": "reading" }
+      },
+      "expect": [{ "ref": "example-org/feads:go.sum", "intent": "reading" }]
+    },
+    {
+      "why": "a bead that released everything reads as empty, marker or no marker",
+      "input": { "has_artifacts": true, "artifact:example-org/feads:go.mod": null },
+      "expect": []
+    },
+    {
+      "why": "no metadata is no artifacts, not an error",
+      "input": {},
+      "expect": []
+    }
+  ],
+
+  "sort_hits": [
+    {
+      "why": "editing first, then planned, reading, done; exact before broad; then by id",
+      "input": [
+        { "issue_id": "feads-d", "relation": "covers", "artifact": { "intent": "done" } },
+        { "issue_id": "feads-c", "relation": "inside", "artifact": { "intent": "reading" } },
+        { "issue_id": "feads-b", "relation": "inside", "artifact": { "intent": "editing" } },
+        { "issue_id": "feads-a", "relation": "exact", "artifact": { "intent": "editing" } },
+        { "issue_id": "feads-e", "relation": "exact", "artifact": { "intent": "planned" } }
+      ],
+      "expect": ["feads-a", "feads-b", "feads-e", "feads-c", "feads-d"]
+    },
+    {
+      "why": "ties break on bead id so repeated searches read the same",
+      "input": [
+        { "issue_id": "feads-z", "relation": "exact", "artifact": { "intent": "editing" } },
+        { "issue_id": "feads-m", "relation": "exact", "artifact": { "intent": "editing" } }
+      ],
+      "expect": ["feads-m", "feads-z"]
+    },
+    {
+      "why": "the tiebreak is by code point too, so a dash sorts where Python puts it",
+      "input": [
+        { "issue_id": "feadsa", "relation": "exact", "artifact": { "intent": "editing" } },
+        { "issue_id": "feads-b", "relation": "exact", "artifact": { "intent": "editing" } },
+        { "issue_id": "feads.c", "relation": "exact", "artifact": { "intent": "editing" } }
+      ],
+      "expect": ["feads-b", "feads.c", "feadsa"]
+    }
+  ],
+
+  "comment": [
+    {
+      "why": "taking it over",
+      "input": {
+        "mine": "feads-b2c",
+        "action": "taking",
+        "ref": "example-org/feads:ui/server/bd.js",
+        "attached_ref": "example-org/feads:ui/server/",
+        "attached_intent": "editing"
+      },
+      "expect": "[feads-artifact] feads-b2c is taking example-org/feads:ui/server/bd.js\nyours: editing example-org/feads:ui/server/"
+    },
+    {
+      "why": "standing down, with a reason",
+      "input": {
+        "mine": "feads-b2c",
+        "action": "skipping",
+        "ref": "example-org/feads:ui/server/bd.js",
+        "attached_ref": "example-org/feads:ui/server/bd.js",
+        "attached_intent": "editing",
+        "note": "will use the existing helper instead"
+      },
+      "expect": "[feads-artifact] feads-b2c will not touch example-org/feads:ui/server/bd.js\nyours: editing example-org/feads:ui/server/bd.js\nwill use the existing helper instead"
+    },
+    {
+      "why": "waiting, with the dependency it created named so the other side can see why",
+      "input": {
+        "mine": "feads-b2c",
+        "action": "waiting",
+        "ref": "example-org/feads:ui/server/bd.js",
+        "attached_ref": "example-org/feads:ui/server/bd.js",
+        "attached_intent": "editing",
+        "target": "feads-9aa",
+        "dep_added": true
+      },
+      "expect": "[feads-artifact] feads-b2c is waiting on this bead before touching example-org/feads:ui/server/bd.js\nyours: editing example-org/feads:ui/server/bd.js\nblocked-by dependency added: feads-b2c → feads-9aa"
+    },
+    {
+      "why": "a dependency that was not added is not claimed",
+      "input": {
+        "mine": "feads-b2c",
+        "action": "waiting",
+        "ref": "example-org/feads:go.mod",
+        "target": "feads-9aa",
+        "dep_added": false
+      },
+      "expect": "[feads-artifact] feads-b2c is waiting on this bead before touching example-org/feads:go.mod"
+    },
+    {
+      "why": "an unknown action is a programming error",
+      "input": { "mine": "feads-b2c", "action": "yoinking", "ref": "example-org/feads" },
+      "throws": true,
+      "message_contains": "action"
+    }
+  ]
+}

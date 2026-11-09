@@ -27,6 +27,36 @@ Repository: https://github.com/dolthub/driver
 License: Apache License 2.0
 Copyright: Copyright 2019-2026 DoltHub, Inc.
 
+--------------------------------------------------------------------------------
+dolthub/eventkit (v0.0.0-20261005174236-b3d0f15b9905)
+--------------------------------------------------------------------------------
+Repository: https://github.com/dolthub/eventkit
+License: Apache License 2.0 (LICENSE included in the pinned release)
+
+--------------------------------------------------------------------------------
+dolthub/fslock
+--------------------------------------------------------------------------------
+Repository: https://github.com/dolthub/fslock
+License: LGPL-3.0 with the project's static/dynamic linking exception.
+Copyright (C) 2015 Canonical Ltd. unless otherwise specified in a source file.
+The exception permits a combined work linking statically or dynamically without
+providing Minimal Corresponding Source/Application Code or installation information
+under LGPLv3 §§4d–4e, provided the other LGPLv3 provisions are followed. This is
+an indirect Go dependency, not vendored here; read its upstream LICENSE for the
+authoritative full terms and exception.
+
+--------------------------------------------------------------------------------
+kch42/buzhash
+--------------------------------------------------------------------------------
+Repository: https://github.com/kch42/buzhash
+License: WTFPL (Do What The Fuck You Want To Public License).
+This is an indirect Go dependency, not vendored here. Its upstream LICENSE says:
+
+           DO WHATEVER THE FUCK YOU WANT, PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+            0. You just DO WHATEVER THE FUCK YOU WANT.
+
 ================================================================================
 Apache License 2.0
 ================================================================================

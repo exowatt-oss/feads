@@ -344,15 +344,15 @@ func GetUserYamlConfig(key string) string {
 // MetricsDisabledByUserConfig reports whether the user-global config.yaml sets
 // metrics.disabled: true. Project/BEADS_DIR config is intentionally ignored so a
 // repository can never re-enable metrics for a user who opted out globally.
-// Absent or unparseable values read as "not disabled" (the default).
+// Absent or unparseable values read as disabled (the privacy-safe default).
 func MetricsDisabledByUserConfig() bool {
 	raw, ok := readUserGlobalYamlValue("metrics.disabled")
 	if !ok {
-		return false
+		return true
 	}
 	disabled, err := strconv.ParseBool(strings.TrimSpace(raw))
 	if err != nil {
-		return false
+		return true
 	}
 	return disabled
 }

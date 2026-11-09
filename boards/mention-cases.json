@@ -1,0 +1,333 @@
+{
+  "description": "Shared @mention parsing cases: boards/mentions.mjs, ui/app/utils/rich-text.js and integrations/beads-mcp (beads_mcp/notifications.py) must all produce `handles` (distinct, first spelling, case-insensitive dedupe) and, where given, `tokens` (handle + [start,end) of the @ token).",
+  "cases": [
+    {
+      "name": "bare handle",
+      "text": "@mira",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "inside a sentence",
+      "text": "ask @mira about it",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "parentheses and brackets",
+      "text": "(@mira) and [@desk-claude]",
+      "handles": [
+        "mira",
+        "desk-claude"
+      ]
+    },
+    {
+      "name": "dots underscores dashes inside",
+      "text": "dots.and_underscores: @a.b_c-d",
+      "handles": [
+        "a.b_c-d"
+      ]
+    },
+    {
+      "name": "digit lead",
+      "text": "digits lead too: @2claude",
+      "handles": [
+        "2claude"
+      ]
+    },
+    {
+      "name": "after newline",
+      "text": "newline\n@mira",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "trailing full stop",
+      "text": "cc @mira.",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "trailing comma",
+      "text": "thanks @alex-laptop, will do",
+      "handles": [
+        "alex-laptop"
+      ]
+    },
+    {
+      "name": "trailing colon",
+      "text": "@carol: taking #x-1",
+      "handles": [
+        "carol"
+      ]
+    },
+    {
+      "name": "closing paren",
+      "text": "(cc @dana-laptop)",
+      "handles": [
+        "dana-laptop"
+      ]
+    },
+    {
+      "name": "exclamation",
+      "text": "ping @mira!",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "question mark",
+      "text": "ok @mira?",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "possessive",
+      "text": "@mira's branch",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "trailing dash",
+      "text": "trailing dash @mira-",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "ellipsis",
+      "text": "trailing dots @mira...",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "trailing underscore",
+      "text": "underscore end @mira_",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "case is kept",
+      "text": "@mira and @LAPTOP-Claude",
+      "handles": [
+        "mira",
+        "LAPTOP-Claude"
+      ]
+    },
+    {
+      "name": "case-insensitive dedupe",
+      "text": "@mira ... @mira ... @mira",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "several",
+      "text": "@mira @carol @mira",
+      "handles": [
+        "mira",
+        "carol"
+      ]
+    },
+    {
+      "name": "next to an issue ref",
+      "text": "issue #feads-iv3 @mira",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "email form",
+      "text": "loop in @mira@example.test please",
+      "handles": [
+        "mira@example.test"
+      ],
+      "tokens": [
+        {
+          "handle": "mira@example.test",
+          "start": 8,
+          "end": 26
+        }
+      ]
+    },
+    {
+      "name": "email form with full stop",
+      "text": "@mira@example.test.",
+      "handles": [
+        "mira@example.test"
+      ]
+    },
+    {
+      "name": "email form dotted local part",
+      "text": "@dana.lee@example.test",
+      "handles": [
+        "dana.lee@example.test"
+      ]
+    },
+    {
+      "name": "stray second at",
+      "text": "hey @mira@ there",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "plain email",
+      "text": "mail me at user@example.com",
+      "handles": []
+    },
+    {
+      "name": "tiny email",
+      "text": "x@y",
+      "handles": []
+    },
+    {
+      "name": "email in parens",
+      "text": "(mira@example.test)",
+      "handles": []
+    },
+    {
+      "name": "email in angle brackets",
+      "text": "<mira@example.test>",
+      "handles": []
+    },
+    {
+      "name": "mailto",
+      "text": "mailto:mira@example.test",
+      "handles": []
+    },
+    {
+      "name": "word before at",
+      "text": "under_score@mira",
+      "handles": []
+    },
+    {
+      "name": "doubled at",
+      "text": "@@mira",
+      "handles": []
+    },
+    {
+      "name": "dash lead",
+      "text": "@-mira",
+      "handles": []
+    },
+    {
+      "name": "dot lead",
+      "text": "@.mira",
+      "handles": []
+    },
+    {
+      "name": "bare sigil",
+      "text": "look @ this",
+      "handles": []
+    },
+    {
+      "name": "inline code",
+      "text": "run `npm i @example/ux` then ping @mira",
+      "handles": [
+        "mira"
+      ],
+      "tokens": [
+        {
+          "handle": "mira",
+          "start": 34,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "name": "handle in inline code",
+      "text": "`@mira` is a handle",
+      "handles": []
+    },
+    {
+      "name": "email-ish in inline code",
+      "text": "`a@b` @c",
+      "handles": [
+        "c"
+      ]
+    },
+    {
+      "name": "fenced code block",
+      "text": "```\ngit log --author @mira\n```\n@carol",
+      "handles": [
+        "carol"
+      ]
+    },
+    {
+      "name": "unterminated fence",
+      "text": "```\n@mira",
+      "handles": []
+    },
+    {
+      "name": "tilde fence",
+      "text": "~~~\n@mira\n~~~\n@carol",
+      "handles": [
+        "carol"
+      ]
+    },
+    {
+      "name": "url path",
+      "text": "see https://medium.com/@someone for context",
+      "handles": []
+    },
+    {
+      "name": "url query then prose",
+      "text": "https://example.com/people?q=@mira and @carol",
+      "handles": [
+        "carol"
+      ]
+    },
+    {
+      "name": "bare www url",
+      "text": "www.example.com/@mira",
+      "handles": []
+    },
+    {
+      "name": "markdown link text",
+      "text": "[@mira](https://example.com/@x)",
+      "handles": [
+        "mira"
+      ]
+    },
+    {
+      "name": "package scope",
+      "text": "@example/ux PersonHoverCard",
+      "handles": []
+    },
+    {
+      "name": "types scope",
+      "text": "install @types/node",
+      "handles": []
+    },
+    {
+      "name": "64 characters",
+      "text": "@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "handles": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "name": "70 characters cut at 64",
+      "text": "@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "handles": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "name": "non-ascii letter is a boundary",
+      "text": "café@bob",
+      "handles": [
+        "bob"
+      ]
+    }
+  ]
+}

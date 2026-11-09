@@ -43,6 +43,31 @@ def get_git_workspace_roots(path: str) -> tuple[str, str] | None:
     return None
 
 
+def normalize_workspace_dir(path: str | None) -> str:
+    """An absolute, ``~``-expanded, trailing-slash-free workspace directory.
+
+    Used for both the value written into an issue's binding and the prefix a query
+    filters with, so that "epics under ``~/orca/workspaces/dev-tools``" matches an epic
+    stamped from a process whose cwd was spelled ``/Users/x/orca/workspaces/dev-tools/``.
+    One function for both sides is the point: a normaliser applied to only one of them is
+    worse than none, because the mismatch is silent and reads as "no such work".
+
+    Symlinks are deliberately *not* resolved. A workspace directory here is an
+    identifier a human and Forca both use by its written path — resolving
+    ``~/orca/workspaces/x`` to some ``/private/var`` realpath would record a string
+    neither of them would ever query with.
+    """
+    if not path:
+        return ""
+    text = str(path).strip()
+    if not text:
+        return ""
+    expanded = os.path.abspath(os.path.expanduser(text))
+    # abspath already drops a trailing separator except at the filesystem root, where
+    # keeping it is correct.
+    return expanded
+
+
 def resolve_workspace_root(path: str) -> str:
     """Resolve a path to the repo that owns the active beads workspace."""
     roots = get_git_workspace_roots(path)

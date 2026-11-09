@@ -1,9 +1,11 @@
 """Pydantic models for beads issue tracker types."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_serializer, model_validator
+
+from .workspace_state import lift_binding
 
 # Type aliases for issue statuses, types, and dependencies
 #
@@ -55,6 +57,29 @@ class IssueMinimal(BaseModel):
     labels: list[str] = Field(default_factory=list)
     dependency_count: int = 0
     dependent_count: int = 0
+
+    # The workspace binding, when the issue carries one. Present here and not only on
+    # the full Issue because `list` answers in this shape: a caller that filtered by
+    # workspace_dir_prefix would otherwise get back rows it cannot tell apart by
+    # worktree, and would have to call show() once per row to learn what it filtered on.
+    workspace_dir: str | None = None
+    session_id: str | None = None
+    host: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _drop_unbound(self, handler: Any) -> dict[str, Any]:
+        """Omit the binding keys entirely when the issue has no binding.
+
+        This model exists to be ~80% smaller than :class:`Issue`; three ``null`` keys on
+        every row of every list on every board is exactly the kind of quiet growth it was
+        introduced to prevent. Most issues are not session epics, so for most rows these
+        keys are pure padding — and an absent key already means "unbound" here.
+        """
+        data: dict[str, Any] = handler(self)
+        for key in ("workspace_dir", "session_id", "host"):
+            if data.get(key) is None:
+                data.pop(key, None)
+        return data
 
     @field_validator("priority")
     @classmethod
@@ -115,6 +140,16 @@ class OperationResult(BaseModel):
     id: str
     action: OperationAction
     message: str | None = None
+    # Who the @mentions in this write reached — `{"delivered": [...], "not_delivered":
+    # [...]}` (see beads_mcp.mentions). Present only when the written text had any.
+    mentions: dict[str, Any] | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_mentions(self, handler: Any) -> Any:
+        data = handler(self)
+        if isinstance(data, dict) and data.get("mentions") is None:
+            data.pop("mentions", None)
+        return data
 
 
 # =============================================================================
@@ -142,6 +177,24 @@ class IssueBase(BaseModel):
     labels: list[str] = Field(default_factory=list)
     dependency_count: int = 0
     dependent_count: int = 0
+
+    # The durable workspace binding (:mod:`beads_mcp.workspace_state`). Stored in the
+    # issue's `metadata` object by both stores and lifted to named fields by the
+    # validator below, so every read path — show, list, ready, blocked, nested
+    # dependencies, either store — surfaces them without knowing they exist. None means
+    # "this issue carries no binding", which is the normal case for anything but a
+    # session epic.
+    workspace_dir: str | None = None
+    session_id: str | None = None
+    host: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _lift_workspace_binding(cls, data: Any) -> Any:
+        """Promote `metadata.workspace_dir` & co. to named fields on the way in."""
+        if isinstance(data, dict):
+            return lift_binding(data)
+        return data
 
     @field_validator("priority")
     @classmethod
@@ -187,10 +240,24 @@ class CreateIssueParams(BaseModel):
     labels: list[str] = Field(default_factory=list)
     id: str | None = None
     deps: list[str] = Field(default_factory=list)
+    # The workspace binding to stamp. On an epic these default to the workspace this
+    # call resolved and the acting agent's registry row; see
+    # :func:`beads_mcp.workspace_state.create_binding`.
+    workspace_dir: str | None = None
+    session_id: str | None = None
+    host: str | None = None
 
 
 class UpdateIssueParams(BaseModel):
-    """Parameters for updating an issue."""
+    """Parameters for updating an issue.
+
+    Every field is "leave it alone" when ``None``. ``labels`` is the one where that
+    distinction does work: a list — including the empty list — **replaces** the whole
+    label set, so ``[]`` clears the labels while ``None`` does not touch them. There is
+    deliberately no add/remove pair here; a caller that already knows the set it wants
+    cannot express it with deltas without first reading, and a read-modify-write across
+    two tool calls is how two agents relabelling one bead lose each other's work.
+    """
 
     issue_id: str
     status: IssueStatus | None = None
@@ -202,12 +269,30 @@ class UpdateIssueParams(BaseModel):
     acceptance_criteria: str | None = None
     notes: str | None = None
     external_ref: str | None = None
+    labels: list[str] | None = None
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Top-level metadata merge; existing keys are preserved, non-null values "
+            "overwrite, and null values delete keys. metadata.effort may contain "
+            "pre_ai_hours, effective_hours, ai_accel, and source."
+        ),
+    )
+    # Workspace binding. Merged into the issue's existing metadata rather than replacing
+    # it — a re-bind after a worktree move must not drop the artifact claims sitting in
+    # the same object.
+    workspace_dir: str | None = None
+    session_id: str | None = None
+    host: str | None = None
 
 
 class ClaimIssueParams(BaseModel):
     """Parameters for atomically claiming an issue."""
 
     issue_id: str
+    # Accounts mode: take over *your own* claim held by another of your sessions.
+    # Never overrides another user's claim.
+    force: bool = False
 
 
 class CloseIssueParams(BaseModel):
@@ -215,6 +300,15 @@ class CloseIssueParams(BaseModel):
 
     issue_id: str
     reason: str = "Completed"
+    force: bool = False
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Top-level metadata merge; existing keys are preserved, non-null values "
+            "overwrite, and null values delete keys. metadata.effort may contain "
+            "pre_ai_hours, effective_hours, ai_accel, and source."
+        ),
+    )
 
 
 class ReopenIssueParams(BaseModel):
@@ -230,6 +324,20 @@ class AddDependencyParams(BaseModel):
     issue_id: str
     depends_on_id: str
     dep_type: DependencyType = "blocks"
+
+
+class RemoveDependencyParams(BaseModel):
+    """Parameters for removing a dependency.
+
+    No ``dep_type``: ``bd dep remove`` takes the pair and drops the edge whatever its
+    type, and the MCP matches it rather than inventing a narrower contract. That is
+    also the shape the caller needs — the reason to remove an edge is almost always
+    that its *type* is wrong, and having to name the wrong type to delete it is the
+    ergonomic trap this tool exists to escape (#feads-qyo).
+    """
+
+    issue_id: str
+    depends_on_id: str
 
 
 class ReadyWorkParams(BaseModel):
@@ -264,6 +372,14 @@ class ListIssuesParams(BaseModel):
     query: str | None = None  # Search in title (case-insensitive)
     unassigned: bool = False  # Filter to only unassigned issues
     limit: int = Field(default=20, ge=1, le=100)  # Reduced to avoid MCP buffer overflow
+    # Prefix match on the workspace binding: "every epic whose workspace_dir is under
+    # ~/orca/workspaces/dev-tools" in one call. A prefix rather than equality because
+    # the useful question is about a tree of worktrees, not one directory.
+    workspace_dir_prefix: str | None = None
+    # Only these issue ids (list(mentioned=True) passes the ids you were @mentioned on,
+    # most recent mention first). With no `status`, closed ones are included but sorted
+    # after open ones.
+    ids: list[str] | None = None
 
 
 class ShowIssueParams(BaseModel):
@@ -333,14 +449,39 @@ class InitResult(BaseModel):
 # =============================================================================
 
 
+class IssueRef(BaseModel):
+    """A `#issue-id` written in a comment, paired with a link that opens it.
+
+    The URL is absolute (the dashboard origin plus its hash route), because the place
+    these are read is a tool result an agent may paste into a message to a human, where
+    a relative link has no origin to resolve against.
+    """
+
+    issue_id: str
+    url: str
+
+
 class Comment(BaseModel):
-    """A comment on an issue (matches `bd comments <id> --json`)."""
+    """A comment on an issue (matches `bd comments <id> --json`).
+
+    The last two fields are *computed*, not stored: `bd` knows nothing about mentions
+    or issue refs, and both are parsed out of `text` by
+    :mod:`beads_mcp.notifications` on the way out. They are optional and default to
+    None so this stays additive — a consumer written before they existed sees the same
+    five fields it always did, and one written after can tell "no mentions in this
+    comment" (an empty parse, left as None) from "nobody annotated this comment".
+    """
 
     id: str
     issue_id: str
     author: str | None = None
     text: str
     created_at: datetime
+    # Live actors named with `@actor`, in the registry's own spelling. Falls back to
+    # the raw parsed names when the registry cannot be read — see
+    # :class:`beads_mcp.notifications.MentionMatch`.
+    mentions: list[str] | None = None
+    refs: list[IssueRef] | None = None
 
 
 class AddCommentParams(BaseModel):

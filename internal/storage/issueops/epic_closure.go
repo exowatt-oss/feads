@@ -104,14 +104,10 @@ func GetEpicsEligibleForClosureInTx(ctx context.Context, tx DBTX) ([]*types.Epic
 		}
 	}
 
-	// Step 4: Batch-fetch all epic issues
-	epicsWithChildren := make([]string, 0)
-	for _, epicID := range epicIDs {
-		if len(epicChildMap[epicID]) > 0 {
-			epicsWithChildren = append(epicsWithChildren, epicID)
-		}
-	}
-	epicIssues, err := GetIssuesByIDsInTx(ctx, tx, epicsWithChildren, nil)
+	// Step 4: Batch-fetch all epic issues. Childless epics are included: a
+	// fresh epic with no children yet is still an epic (the dashboard's Epics
+	// tab lists it at 0/0), it just can never be EligibleForClose.
+	epicIssues, err := GetIssuesByIDsInTx(ctx, tx, epicIDs, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch-fetch epic issues: %w", err)
 	}
@@ -124,9 +120,6 @@ func GetEpicsEligibleForClosureInTx(ctx context.Context, tx DBTX) ([]*types.Epic
 	var results []*types.EpicStatus
 	for _, epicID := range epicIDs {
 		children := epicChildMap[epicID]
-		if len(children) == 0 {
-			continue
-		}
 
 		issue, ok := epicIssueMap[epicID]
 		if !ok || issue == nil {

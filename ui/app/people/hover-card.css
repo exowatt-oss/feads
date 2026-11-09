@@ -1,0 +1,30 @@
+/*
+ * feads ⇄ @example/ux: the person hover card in the dashboard's own tokens.
+ * Loaded with the lazy people bundle, after the package's styles.css. Scoped to
+ * the one host the card portals into, so nothing else on the page changes.
+ * The dashboard's variables already switch with [data-theme], so the dark
+ * class only has to win over the package's own dark palette.
+ */
+.feads-person-hover .exo-ux-root,
+.feads-person-hover .exo-ux-root.exo-ux-theme-dark {
+  --exo-ux-font: var(--font-sans);
+  --exo-ux-mono: var(--font-mono);
+  --exo-ux-bg: var(--bg);
+  --exo-ux-fg: var(--fg);
+  --exo-ux-muted: var(--muted);
+  --exo-ux-border: var(--border);
+  --exo-ux-surface: var(--bg-soft);
+  --exo-ux-surface-hover: var(--surface-hover);
+  --exo-ux-accent: var(--brand-text);
+  --exo-ux-radius: var(--radius-md);
+  --exo-ux-radius-sm: var(--radius-sm);
+  --exo-ux-shadow: var(--shadow-pop);
+  /* Above menus (60) and toasts; inside a modal dialog it is in its top layer. */
+  --exo-ux-z: 1000;
+}
+
+/* The invisible box laid over the name being shown; Radix anchors on it. */
+.feads-person-hover__anchor {
+  position: fixed;
+  pointer-events: none;
+}

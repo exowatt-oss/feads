@@ -1,0 +1,215 @@
+{
+  "description": "guidanceFor (boards/notifications.mjs) and guidance_for (beads_mcp/notifications.py) must return `guidance` for each case, word for word. Regenerate from the Node engine when the wording changes; the Python mirror must then match.",
+  "cases": [
+    {
+      "type": "mention",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "@carol mentioned you on #x2: read the thread, then reply there with @carol (your answer, or what you are doing that touches it); keep working on what is clearly yours; never wait for a reply."
+    },
+    {
+      "type": "mention",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "@bob mentioned you on #ex-1: read the thread, then reply there with @bob (your answer, or what you are doing that touches it); keep working on what is clearly yours; never wait for a reply."
+    },
+    {
+      "type": "mention",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "You were mentioned on #ex-9: read the thread and reply there, @mentioning whoever asked; keep working on what is clearly yours; never wait for a reply."
+    },
+    {
+      "type": "assigned",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "You now hold #x2. Claim it when you start; if it is not yours to do, comment on #x2 @mentioning who should take it."
+    },
+    {
+      "type": "assigned",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "You now hold #ex-1. Claim it when you start; if it is not yours to do, comment on #ex-1 @mentioning who should take it."
+    },
+    {
+      "type": "assigned",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "You now hold #ex-9. Claim it when you start; if it is not yours to do, comment on #ex-9 @mentioning who should take it."
+    },
+    {
+      "type": "reassigned_away",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "Coordinate, don't block: #x2 is now @carol's. Stop changing it; comment on #x2 with @carol saying where your partial work is rather than re-claiming."
+    },
+    {
+      "type": "reassigned_away",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "Coordinate, don't block: #ex-1 is now @bob's. Stop changing it; comment on #ex-1 with @bob saying where your partial work is rather than re-claiming."
+    },
+    {
+      "type": "reassigned_away",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "Coordinate, don't block: #ex-9 was reassigned. Stop changing it; comment on #ex-9, @mentioning the new holder, saying where your partial work is rather than re-claiming."
+    },
+    {
+      "type": "work_overlap",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "Coordinate, don't block: @carol is on #x2, which overlaps your #x1 — comment on #x2 with @carol saying which part you take and which you leave to them; keep working on what is clearly yours; never wait for a reply."
+    },
+    {
+      "type": "work_overlap",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "Coordinate, don't block: @bob is on #ex-1, which overlaps your work — comment on #ex-1 with @bob saying which part you take and which you leave to them; keep working on what is clearly yours; never wait for a reply."
+    },
+    {
+      "type": "work_overlap",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "Coordinate, don't block: #ex-9 overlaps your work — comment on #ex-9, @mentioning its holder, saying which part you take; keep working on what is clearly yours; never wait for a reply."
+    },
+    {
+      "type": "dependency_completed",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "Blocker #x1 is closed — #x2 may be ready; check ready() and pick it up if it is yours."
+    },
+    {
+      "type": "dependency_completed",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "Blocker is closed — #ex-1 may be ready; check ready() and pick it up if it is yours."
+    },
+    {
+      "type": "dependency_completed",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "Blocker is closed — #ex-9 may be ready; check ready() and pick it up if it is yours."
+    },
+    {
+      "type": "comment_on_owned",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "@carol commented on #x2, which you own: read it; if it asks something or touches your plan, reply on #x2 with @carol."
+    },
+    {
+      "type": "comment_on_owned",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "@bob commented on #ex-1, which you own: read it; if it asks something or touches your plan, reply on #ex-1 with @bob."
+    },
+    {
+      "type": "comment_on_owned",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "New comment on #ex-9, which you own: read it; if it asks something, reply there @mentioning its author."
+    },
+    {
+      "type": "status_on_owned",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "#x2 was moved by @carol — check it matches your plan; if it does not, comment on #x2 with @carol rather than moving it back."
+    },
+    {
+      "type": "status_on_owned",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "#ex-1 was moved by @bob — check it matches your plan; if it does not, comment on #ex-1 with @bob rather than moving it back."
+    },
+    {
+      "type": "status_on_owned",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "#ex-9 changed status — check it matches your plan; if it does not, comment on #ex-9 @mentioning who moved it."
+    },
+    {
+      "type": "new_in_area",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "@carol filed #x2 under your epic #x1: triage it; if it duplicates or overlaps work in flight, comment on #x2 with @carol naming that #item."
+    },
+    {
+      "type": "new_in_area",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "@bob filed #ex-1 under your epic: triage it; if it duplicates or overlaps work in flight, comment on #ex-1 with @bob naming that #item."
+    },
+    {
+      "type": "new_in_area",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "New work under your epic: triage #ex-9; if it duplicates or overlaps work in flight, comment on #ex-9 @mentioning its filer and naming that #item."
+    },
+    {
+      "type": "update_on_commented",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": "@carol changed #x2 since you commented — re-read before acting on it; if it now collides with your work, comment there with @carol."
+    },
+    {
+      "type": "update_on_commented",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": "@bob changed #ex-1 since you commented — re-read before acting on it; if it now collides with your work, comment there with @bob."
+    },
+    {
+      "type": "update_on_commented",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": "#ex-9 changed since you commented — re-read before acting on it."
+    },
+    {
+      "type": "unknown_type",
+      "issue_id": "x2",
+      "actor": "carol",
+      "related_issue": "x1",
+      "guidance": ""
+    },
+    {
+      "type": "unknown_type",
+      "issue_id": "ex-1",
+      "actor": "bob",
+      "related_issue": "",
+      "guidance": ""
+    },
+    {
+      "type": "unknown_type",
+      "issue_id": "ex-9",
+      "actor": "",
+      "related_issue": "",
+      "guidance": ""
+    }
+  ]
+}
