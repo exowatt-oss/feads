@@ -3,6 +3,7 @@ name: Standalone CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   go:
@@ -15,6 +16,15 @@ jobs:
           cache: true
       - name: ICU development headers
         run: sudo apt-get update && sudo apt-get install -y libicu-dev
+      # Same as upstream Beads CI: the Go suite needs the dolt CLI on PATH under GITHUB_ACTIONS.
+      - name: Install Dolt
+        run: curl -fsSL https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
+      - name: Configure Git and Dolt identity
+        run: |
+          git config --global user.name "CI Bot"
+          git config --global user.email "ci@example.invalid"
+          dolt config --global --add user.name "CI Bot"
+          dolt config --global --add user.email "ci@example.invalid"
       - name: Build
         run: go build -p 4 ./...
       - name: Build subprocess test CLI
